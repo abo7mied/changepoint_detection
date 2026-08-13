@@ -801,11 +801,11 @@ def _make_dataset_config(
     )
 
     if spectral_experiment is not None:
-    expected_shape = (
-        parameters.num_regimes,
-        config.dimension,
-        6,
-    )
+        expected_shape = (
+            parameters.num_regimes,
+            config.dimension,
+            6,
+        )
 
     if spectral_experiment.coefficients.shape != expected_shape:
         raise ValueError(
