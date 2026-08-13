@@ -100,7 +100,8 @@ def estimate_causal_cpd_log_normalized_cross_regime(
     L,
     candidates,
     competitor,
-    device='cpu',
+    device="cpu",
+    model_parameters=None,
     use_epsilon=True,
     reverse_right_to_left=True,
     split_train_validation=False,
@@ -113,6 +114,15 @@ def estimate_causal_cpd_log_normalized_cross_regime(
     X = np.asarray(series, dtype=float)
     h = int(window_size)
 
+    if model_parameters is None:
+        selected_model_parameters = {}
+    else:
+        selected_model_parameters = (
+            model_parameters.get(
+                competitor.model_choice,
+                {},
+            )
+        )
     if h <= L:
         raise ValueError(
             "window_size must be larger than L. "
@@ -193,9 +203,12 @@ def estimate_causal_cpd_log_normalized_cross_regime(
             right_test_labels = right_labels
 
         f_left = make_model(
-            competitor.model_choice,
-            L,
-            device,
+            model_choice=competitor.model_choice,
+            L=L,
+            device=device,
+            model_parameters=(
+                selected_model_parameters
+            ),
         )
 
         f_left.fit(
@@ -272,9 +285,12 @@ def estimate_causal_cpd_log_normalized_cross_regime(
             left_test_labels = backward_left_labels
 
         f_right = make_model(
-            competitor.model_choice,
-            L,
-            device,
+            model_choice=competitor.model_choice,
+            L=L,
+            device=device,
+            model_parameters=(
+                selected_model_parameters
+            ),
         )
 
         f_right.fit(
