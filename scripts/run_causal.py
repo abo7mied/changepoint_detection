@@ -22,23 +22,64 @@ from cpd.saving import SavingConfig
 
 # --- 1: Sweeps ---
 
-DIMENSION_SIZES = [5, 10, 20, 50, 100, 150]
-DATASET_LENGTHS = [500, 1000, 2000, 4000]
-NOISE_STD_DEVS = [1, 2, 4]
-CHANGEPOINT_PERCENTILES = [0.1, 0.25, 0.5, 0.75, 0.9]
-
-EMPIRICAL_QUANTILE_MATCH_OPTIONS = [False]
-DATA_GENERATING_PROCESSES = [
-    "linear_var",
-    "controlled_nonlinear_var",
-    "sign_flip_quadratic",
+DIMENSION_SIZES = [
+    5,
+    10,
+    20,
+    50,
+    100,
+    150,
 ]
 
-QUADRATIC_COEFFICIENT = 3.0
-DATASET_VAR_LAG_ORDERS = [1]
+DATASET_LENGTHS = [
+    500,
+    1000,
+    2000,
+    4000,
+]
 
-MODEL_LAG_ORDERS = [1, 2, 5, 10]
-WINDOW_SIZES = [50, 100, 150, 250, 400]
+NOISE_STD_DEVS = [
+    1,
+    2,
+    4,
+]
+
+CHANGEPOINT_PERCENTILES = [
+    0.1,
+    0.25,
+    0.5,
+    0.75,
+    0.9,
+]
+
+EMPIRICAL_QUANTILE_MATCH_OPTIONS = [
+    False,
+]
+
+DATA_GENERATING_PROCESSES = [
+    "linear_var",
+    # "controlled_nonlinear_var",
+    # "sign_flip_quadratic",
+]
+
+DATASET_VAR_LAG_ORDERS = [
+    1,
+]
+
+MODEL_LAG_ORDERS = [
+    1,
+    2,
+    5,
+    10,
+]
+
+WINDOW_SIZES = [
+    50,
+    100,
+    150,
+    250,
+    400,
+]
 
 MODEL_CHOICES = [
     "VARModel",
@@ -53,7 +94,9 @@ SCORE_DIRECTIONS = [
     "forward_only",
 ]
 
-EPSILON_VALUES = [1e-10]
+EPSILON_VALUES = [
+    1e-10,
+]
 
 KMO_H_CHOICES = [
     "diag_inv_cov",
@@ -64,24 +107,32 @@ KMO_H_CHOICES = [
 
 # --- 2: Defaults ---
 
-EXPERIMENT_DESIGN_MODE = "one_factor_at_a_time"
+EXPERIMENT_DESIGN_MODE = (
+    "one_factor_at_a_time"
+)
 
 DEFAULT_DIMENSION = 10
 DEFAULT_DATASET_LENGTH = 2000
 DEFAULT_NOISE_STD_DEV = 1
 DEFAULT_CHANGEPOINT_PERCENTILE = 0.5
 DEFAULT_EMPIRICAL_QUANTILE_MATCH = False
-DEFAULT_DATA_GENERATING_PROCESS = "linear_var"
+
+DEFAULT_DATA_GENERATING_PROCESS = (
+    "linear_var"
+)
+
 DEFAULT_DATASET_VAR_LAG_ORDER = 1
 
 DEFAULT_MODEL_LAG_ORDER = 2
 DEFAULT_WINDOW_SIZE = 150
 
+QUADRATIC_COEFFICIENT = 3.0
+
 DEVICE = "cpu"
 
 MLP_HIDDEN_SIZE = 32
 MLP_LEARNING_RATE = 0.5
-MLP_EPOCHS = 500
+MLP_EPOCHS = 100
 MLP_BATCH_SIZE = 8
 
 RNN_HIDDEN_SIZE = 16
@@ -108,12 +159,16 @@ BASE_SEED = 42
 CANDIDATE_STEP = 10
 
 FULL_EXPERIMENT_NUM_REPLICATES = 100
-FULL_EXPERIMENT_BASE_SEED = BASE_SEED
+
+FULL_EXPERIMENT_BASE_SEED = (
+    BASE_SEED
+)
 
 
 # --- 3: Toggles ---
 
 INCLUDE_DEFAULT_SETUP = True
+
 AUTO_SHRINK_WINDOW_IF_NEEDED = False
 
 USE_EPSILON = True
@@ -124,7 +179,7 @@ KMO_INCLUDE_INTERCEPT = False
 
 RUN_FULL_REPLICATE_EXPERIMENT = False
 
-VERBOSE_CANDIDATE_PROGRESS = False
+VERBOSE_CANDIDATE_PROGRESS = True
 PRINT_SCORES = False
 PRINT_PER_DATASET_TABLES = False
 
@@ -132,14 +187,20 @@ SAVE_SCORE_PLOTS = True
 SAVE_SCORE_VALUES = True
 SAVE_SAMPLE_SERIES_PLOTS = True
 SAVE_SAMPLE_SERIES_VALUES = True
-SAVE_PREDICTIVE_MECHANISM_HEATMAPS = True
+
+SAVE_PREDICTIVE_MECHANISM_HEATMAPS = (
+    True
+)
 
 
 # --- 4: Output ---
 
 ANALYSIS_DOMAIN_NAME = "time"
 
-EXPERIMENT_OUTPUTS_BASE_DIR = "experiment_outputs"
+EXPERIMENT_OUTPUTS_BASE_DIR = (
+    "experiment_outputs"
+)
+
 FULL_EXPERIMENT_OUTPUTS_BASE_DIR = (
     "full_experiment_outputs"
 )
@@ -147,13 +208,18 @@ FULL_EXPERIMENT_OUTPUTS_BASE_DIR = (
 FINAL_TABLE_CSV_FILENAME = (
     "final_percentage_error_table.csv"
 )
+
 FINAL_TABLE_MD_FILENAME = (
     "final_percentage_error_table.md"
 )
+
 FULL_EXPERIMENT_SUMMARY_FILENAME = (
     "full_experiment_summary.json"
 )
-SETUP_SUMMARY_FILENAME = "setup_summary.json"
+
+SETUP_SUMMARY_FILENAME = (
+    "setup_summary.json"
+)
 
 PLOT_FORMAT = "png"
 PLOT_DPI = 180
@@ -178,7 +244,9 @@ MODEL_PARAMETERS = {
         "loss_type": "mse",
     },
     "AEModel": {
-        "bottleneck_size": AE_BOTTLENECK_SIZE,
+        "bottleneck_size": (
+            AE_BOTTLENECK_SIZE
+        ),
         "lr": AE_LEARNING_RATE,
         "epochs": AE_EPOCHS,
         "batch_size": AE_BATCH_SIZE,
@@ -186,65 +254,74 @@ MODEL_PARAMETERS = {
     },
 }
 
-EXPERIMENT_PARAMETERS = CausalExperimentParameters(
-    dataset_lengths=DATASET_LENGTHS,
-    noise_std_devs=NOISE_STD_DEVS,
-    changepoint_percentiles=(
-        CHANGEPOINT_PERCENTILES
-    ),
-    empirical_quantile_match_options=(
-        EMPIRICAL_QUANTILE_MATCH_OPTIONS
-    ),
-    data_generating_processes=(
-        DATA_GENERATING_PROCESSES
-    ),
-    dataset_var_lag_orders=(
-        DATASET_VAR_LAG_ORDERS
-    ),
-    dimension_sizes=DIMENSION_SIZES,
-    model_lag_orders=MODEL_LAG_ORDERS,
-    window_sizes=WINDOW_SIZES,
+EXPERIMENT_PARAMETERS = (
+    CausalExperimentParameters(
+        dataset_lengths=DATASET_LENGTHS,
+        noise_std_devs=NOISE_STD_DEVS,
+        changepoint_percentiles=(
+            CHANGEPOINT_PERCENTILES
+        ),
+        empirical_quantile_match_options=(
+            EMPIRICAL_QUANTILE_MATCH_OPTIONS
+        ),
+        data_generating_processes=(
+            DATA_GENERATING_PROCESSES
+        ),
+        dataset_var_lag_orders=(
+            DATASET_VAR_LAG_ORDERS
+        ),
+        dimension_sizes=DIMENSION_SIZES,
+        model_lag_orders=MODEL_LAG_ORDERS,
+        window_sizes=WINDOW_SIZES,
 
-    default_dataset_length=(
-        DEFAULT_DATASET_LENGTH
-    ),
-    default_noise_std_dev=(
-        DEFAULT_NOISE_STD_DEV
-    ),
-    default_changepoint_percentile=(
-        DEFAULT_CHANGEPOINT_PERCENTILE
-    ),
-    default_empirical_quantile_match=(
-        DEFAULT_EMPIRICAL_QUANTILE_MATCH
-    ),
-    default_data_generating_process=(
-        DEFAULT_DATA_GENERATING_PROCESS
-    ),
-    default_dataset_var_lag_order=(
-        DEFAULT_DATASET_VAR_LAG_ORDER
-    ),
-    default_dimension=DEFAULT_DIMENSION,
-    default_model_lag_order=(
-        DEFAULT_MODEL_LAG_ORDER
-    ),
-    default_window_size=DEFAULT_WINDOW_SIZE,
+        default_dataset_length=(
+            DEFAULT_DATASET_LENGTH
+        ),
+        default_noise_std_dev=(
+            DEFAULT_NOISE_STD_DEV
+        ),
+        default_changepoint_percentile=(
+            DEFAULT_CHANGEPOINT_PERCENTILE
+        ),
+        default_empirical_quantile_match=(
+            DEFAULT_EMPIRICAL_QUANTILE_MATCH
+        ),
+        default_data_generating_process=(
+            DEFAULT_DATA_GENERATING_PROCESS
+        ),
+        default_dataset_var_lag_order=(
+            DEFAULT_DATASET_VAR_LAG_ORDER
+        ),
+        default_dimension=DEFAULT_DIMENSION,
+        default_model_lag_order=(
+            DEFAULT_MODEL_LAG_ORDER
+        ),
+        default_window_size=(
+            DEFAULT_WINDOW_SIZE
+        ),
 
-    experiment_design_mode=(
-        EXPERIMENT_DESIGN_MODE
-    ),
-    include_default_setup=INCLUDE_DEFAULT_SETUP,
-    auto_shrink_window_if_needed=(
-        AUTO_SHRINK_WINDOW_IF_NEEDED
-    ),
+        experiment_design_mode=(
+            EXPERIMENT_DESIGN_MODE
+        ),
+        include_default_setup=(
+            INCLUDE_DEFAULT_SETUP
+        ),
+        auto_shrink_window_if_needed=(
+            AUTO_SHRINK_WINDOW_IF_NEEDED
+        ),
 
-    num_regimes=NUM_REGIMES,
-    control=CONTROL,
-    alpha=ALPHA,
-    beta=BETA,
-    var_target_spectral_radius=(
-        VAR_TARGET_SPECTRAL_RADIUS
-    ),
-    base_seed=BASE_SEED,
+        num_regimes=NUM_REGIMES,
+        control=CONTROL,
+        alpha=ALPHA,
+        beta=BETA,
+        var_target_spectral_radius=(
+            VAR_TARGET_SPECTRAL_RADIUS
+        ),
+        quadratic_coefficient=(
+            QUADRATIC_COEFFICIENT
+        ),
+        base_seed=BASE_SEED,
+    )
 )
 
 PLOT_CONFIG = PlotConfig(
@@ -280,7 +357,9 @@ RUNNER_CONFIG = RunnerConfig(
     experiment_design_mode=(
         EXPERIMENT_DESIGN_MODE
     ),
-    analysis_domain_name=ANALYSIS_DOMAIN_NAME,
+    analysis_domain_name=(
+        ANALYSIS_DOMAIN_NAME
+    ),
     candidate_step=CANDIDATE_STEP,
 
     verbose_candidate_progress=(
@@ -322,14 +401,24 @@ RUNNER_CONFIG = RunnerConfig(
         "split_train_validation": (
             SPLIT_TRAIN_VALIDATION
         ),
-        "val_frac": VALIDATION_FRACTION,
-        "min_train": MIN_TRAIN_EXAMPLES,
-        "min_val": MIN_VALIDATION_EXAMPLES,
+        "validation_fraction": (
+            VALIDATION_FRACTION
+        ),
+        "min_train_size": (
+            MIN_TRAIN_EXAMPLES
+        ),
+        "min_validation_size": (
+            MIN_VALIDATION_EXAMPLES
+        ),
         "device": DEVICE,
-        "model_parameters": MODEL_PARAMETERS,
+        "model_parameters": (
+            MODEL_PARAMETERS
+        ),
     },
     kmo_kwargs={
-        "include_intercept": KMO_INCLUDE_INTERCEPT,
+        "include_intercept": (
+            KMO_INCLUDE_INTERCEPT
+        ),
         "ridge": 1e-8,
     },
 )
@@ -343,19 +432,25 @@ def configured_dataset_configs():
     )
 
 
-def configured_competitors(dataset_config):
+def configured_competitors(
+    dataset_config,
+):
     for model_choice in MODEL_CHOICES:
         if model_choice == "KMOVARScore":
             for h_choice in KMO_H_CHOICES:
                 yield CompetitorConfig(
                     model_choice=model_choice,
-                    score_direction=f"kmo_{h_choice}",
+                    score_direction=(
+                        f"kmo_{h_choice}"
+                    ),
                     epsilon=EPSILON_VALUES[0],
                     model_lag_order=(
-                        dataset_config.model_lag_order
+                        dataset_config
+                        .model_lag_order
                     ),
                     window_size=(
-                        dataset_config.window_size
+                        dataset_config
+                        .window_size
                     ),
                 )
 
@@ -367,18 +462,24 @@ def configured_competitors(dataset_config):
         ):
             yield CompetitorConfig(
                 model_choice=model_choice,
-                score_direction=score_direction,
+                score_direction=(
+                    score_direction
+                ),
                 epsilon=epsilon,
                 model_lag_order=(
-                    dataset_config.model_lag_order
+                    dataset_config
+                    .model_lag_order
                 ),
                 window_size=(
-                    dataset_config.window_size
+                    dataset_config
+                    .window_size
                 ),
             )
 
 
-def configured_dataset_generator(dataset_config):
+def configured_dataset_generator(
+    dataset_config,
+):
     return generate_dataset(
         dataset_config,
         EXPERIMENT_PARAMETERS,
@@ -386,9 +487,15 @@ def configured_dataset_generator(dataset_config):
 
 
 DEPENDENCIES = RunnerDependencies(
-    iter_dataset_configs=configured_dataset_configs,
-    iter_competitors=configured_competitors,
-    generate_dataset=configured_dataset_generator,
+    iter_dataset_configs=(
+        configured_dataset_configs
+    ),
+    iter_competitors=(
+        configured_competitors
+    ),
+    generate_dataset=(
+        configured_dataset_generator
+    ),
 )
 
 
