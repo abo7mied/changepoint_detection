@@ -146,16 +146,14 @@ def get_sweep_grid():
         )
 
     if SWEEP_MODE == "plot":
-        for key in [
-            "batch_sizes",
-            "epoch_counts",
-        ]:
-            if not grid[key]:
-                raise ValueError(
-                    f"{key} cannot be empty."
-                )
+        if not grid["batch_sizes"]:
+            raise ValueError(
+                "batch_sizes cannot be empty."
+            )
 
-            grid[key] = [grid[key][0]]
+        grid["batch_sizes"] = [
+            grid["batch_sizes"][0]
+        ]
 
     return grid
 
@@ -623,6 +621,8 @@ def run_sweep():
                         (
                             size,
                             learning_rate,
+                            batch_size,
+                            epochs,
                         )
                     ] = result
 
@@ -688,14 +688,22 @@ def plot_score_curves(
     """Plot one score curve per configuration."""
     grid = get_sweep_grid()
 
-    sizes = grid["sizes"]
-
-    learning_rates = (
-        grid["learning_rates"]
+    combinations = list(
+        product(
+            grid["sizes"],
+            grid["learning_rates"],
+            grid["batch_sizes"],
+            grid["epoch_counts"],
+        )
     )
 
-    batch_size = grid["batch_sizes"][0]
-    epochs = grid["epoch_counts"][0]
+    num_plots = len(combinations)
+    num_columns = min(4, num_plots)
+    num_rows = int(
+        np.ceil(
+            num_plots / num_columns
+        )
+    )
 
     tau_star = int(
         round(
@@ -704,96 +712,105 @@ def plot_score_curves(
     )
 
     fig, axes = plt.subplots(
-        nrows=len(sizes),
-        ncols=len(learning_rates),
+        nrows=num_rows,
+        ncols=num_columns,
         figsize=(
-            4.5 * len(learning_rates),
-            3.5 * len(sizes),
+            4.5 * num_columns,
+            3.5 * num_rows,
         ),
         sharex=True,
         squeeze=False,
     )
 
-    for row, size in enumerate(sizes):
-        for column, learning_rate in enumerate(
-            learning_rates
-        ):
-            ax = axes[row, column]
+    for ax, combination in zip(
+        axes.ravel(),
+        combinations,
+    ):
+        (
+            size,
+            learning_rate,
+            batch_size,
+            epochs,
+        ) = combination
 
-            result = score_results.get(
-                (
-                    size,
-                    learning_rate,
-                )
+        result = score_results.get(
+            (
+                size,
+                learning_rate,
+                batch_size,
+                epochs,
             )
+        )
 
-            if result is None:
-                ax.set_title(
-                    f"{grid['size_name']}={size}, "
-                    f"lr={learning_rate:g}\n"
-                    "ERROR"
-                )
+        configuration_title = (
+            f"{grid['size_name']}={size}, "
+            f"lr={learning_rate:g}\n"
+            f"batch={batch_size}, "
+            f"epochs={epochs}"
+        )
 
-                ax.grid(alpha=0.25)
-                continue
-
-            scores = result["scores"]
-
-            taus = np.array(
-                sorted(scores),
-                dtype=int,
-            )
-
-            values = np.array(
-                [
-                    scores[tau]
-                    for tau in taus
-                ],
-                dtype=float,
-            )
-
-            ax.plot(
-                taus,
-                values,
-                linewidth=1.5,
-            )
-
-            ax.axvline(
-                tau_star,
-                linestyle="--",
-                linewidth=1.5,
-                label="True CP",
-            )
-
-            ax.axvline(
-                result["tau_hat"],
-                linestyle=":",
-                linewidth=1.5,
-                label="Estimated CP",
-            )
-
+        if result is None:
             ax.set_title(
-                f"{grid['size_name']}={size}, "
-                f"lr={learning_rate:g}\n"
-                f"tau_hat={result['tau_hat']}, "
-                f"error="
-                f"{result['absolute_error']}"
+                f"{configuration_title}\n"
+                "ERROR"
             )
-
             ax.grid(alpha=0.25)
+            continue
 
-            if row == len(sizes) - 1:
-                ax.set_xlabel(
-                    "Candidate changepoint"
-                )
+        scores = result["scores"]
 
-            if column == 0:
-                ax.set_ylabel("CPD score")
+        taus = np.array(
+            sorted(scores),
+            dtype=int,
+        )
+
+        values = np.array(
+            [
+                scores[tau]
+                for tau in taus
+            ],
+            dtype=float,
+        )
+
+        ax.plot(
+            taus,
+            values,
+            linewidth=1.5,
+        )
+
+        ax.axvline(
+            tau_star,
+            linestyle="--",
+            linewidth=1.5,
+            label="True CP",
+        )
+
+        ax.axvline(
+            result["tau_hat"],
+            linestyle=":",
+            linewidth=1.5,
+            label="Estimated CP",
+        )
+
+        ax.set_title(
+            f"{configuration_title}\n"
+            f"tau_hat={result['tau_hat']}, "
+            f"error={result['absolute_error']}"
+        )
+
+        ax.set_xlabel(
+            "Candidate changepoint"
+        )
+        ax.set_ylabel("CPD score")
+        ax.grid(alpha=0.25)
+
+    for ax in axes.ravel()[num_plots:]:
+        ax.set_visible(False)
 
     handles = []
     labels = []
 
-    for ax in axes.ravel():
+    for ax in axes.ravel()[:num_plots]:
         handles, labels = (
             ax.get_legend_handles_labels()
         )
@@ -811,14 +828,12 @@ def plot_score_curves(
     fig.suptitle(
         f"{MODEL_CHOICE} Hyperparameter Sweep\n"
         f"dataset={EXPERIMENT_KIND}, "
-        f"batch_size={batch_size}, "
-        f"epochs={epochs}, "
         f"window_size={WINDOW_SIZE}",
         fontsize=16,
     )
 
     fig.tight_layout(
-        rect=[0, 0, 1, 0.95]
+        rect=[0, 0, 1, 0.96]
     )
 
     fig.savefig(
