@@ -28,7 +28,13 @@ NOISE_STD_DEVS = [1, 2, 4]
 CHANGEPOINT_PERCENTILES = [0.1, 0.25, 0.5, 0.75, 0.9]
 
 EMPIRICAL_QUANTILE_MATCH_OPTIONS = [False]
-DATA_GENERATING_PROCESSES = ["linear_var"]
+DATA_GENERATING_PROCESSES = [
+    "linear_var",
+    "controlled_nonlinear_var",
+    "sign_flip_quadratic",
+]
+
+QUADRATIC_COEFFICIENT = 3.0
 DATASET_VAR_LAG_ORDERS = [1]
 
 MODEL_LAG_ORDERS = [1, 2, 5, 10]

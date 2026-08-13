@@ -66,7 +66,8 @@ CHANGEPOINT_PERCENTILE = 0.25
 SIGMA = 1.0
 
 CAUSAL_DATA_GENERATING_PROCESS = (
-    "controlled_nonlinear_var"
+    "sign_flip_quadratic",
+    # "controlled_nonlinear_var"
 )
 DATA_LAG_ORDER = 1
 

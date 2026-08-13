@@ -12,6 +12,11 @@ from cpd.data.var import (
     piecewise_controlled_nonlinear_var_p,
     piecewise_linear_var,
 )
+
+from cpd.data.nonlinear import (
+    sign_flip_quadratic_dataset,
+)
+
 from cpd.design import (
     _coerce_positive_integer,
     _normalize_grid_choices,
@@ -54,6 +59,9 @@ class CausalExperimentParameters:
     beta: float
     var_target_spectral_radius: float
     base_seed: int
+
+    quadratic_coefficient: float = 3.0
+
 
 
 @dataclass(frozen=True)
@@ -134,6 +142,7 @@ def _make_dataset_config(
     valid_processes = {
         "controlled_nonlinear_var",
         "linear_var",
+        "sign_flip_quadratic",
     }
 
     if data_generating_process not in valid_processes:
@@ -389,6 +398,23 @@ def generate_dataset(
             noise_std_dev=config.sigma,
             rng=rng,
         )
+    elif (
+        config.data_generating_process
+        == "sign_flip_quadratic"
+    ):
+        coefficient_graphs = None
+
+        X_raw = sign_flip_quadratic_dataset(
+            num_variables=config.dimension,
+            num_timepoints=config.T,
+            change_point=config.tau_star,
+            coefficient=(
+                parameters
+                .quadratic_coefficient
+            ),
+            noise_std_dev=config.sigma,
+            rng=rng,
+        )
     else:
         raise ValueError(
             "Unknown data_generating_process. Valid options are "
@@ -402,6 +428,7 @@ def generate_dataset(
             num_regimes=parameters.num_regimes,
             change_points=[config.tau_star],
         )
+    
     else:
         X_used = X_raw
 
