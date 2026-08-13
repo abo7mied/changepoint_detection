@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-from dataclasses import replace
 from itertools import product
 
 import matplotlib.pyplot as plt
@@ -112,7 +111,6 @@ PRINT_BEST_CONFIGURATION = True
 
 def get_sweep_grid():
     """Return the active model's sweep grid."""
-
     if MODEL_CHOICE == "MLPModel":
         grid = {
             "size_name": "hidden_size",
@@ -121,6 +119,7 @@ def get_sweep_grid():
             "batch_sizes": MLP_BATCH_SIZES,
             "epoch_counts": MLP_EPOCH_COUNTS,
         }
+
     elif MODEL_CHOICE == "AEModel":
         grid = {
             "size_name": "bottleneck_size",
@@ -129,6 +128,7 @@ def get_sweep_grid():
             "batch_sizes": AE_BATCH_SIZES,
             "epoch_counts": AE_EPOCH_COUNTS,
         }
+
     elif MODEL_CHOICE == "RNNModel":
         grid = {
             "size_name": "hidden_size",
@@ -137,6 +137,7 @@ def get_sweep_grid():
             "batch_sizes": RNN_BATCH_SIZES,
             "epoch_counts": RNN_EPOCH_COUNTS,
         }
+
     else:
         raise ValueError(
             "MODEL_CHOICE must be 'MLPModel', "
@@ -145,11 +146,15 @@ def get_sweep_grid():
         )
 
     if SWEEP_MODE == "plot":
-        for key in ["batch_sizes", "epoch_counts"]:
+        for key in [
+            "batch_sizes",
+            "epoch_counts",
+        ]:
             if not grid[key]:
                 raise ValueError(
                     f"{key} cannot be empty."
                 )
+
             grid[key] = [grid[key][0]]
 
     return grid
@@ -157,7 +162,6 @@ def get_sweep_grid():
 
 def validate_configuration():
     """Validate the sweep configuration."""
-
     if EXPERIMENT_KIND not in {
         "causal",
         "spectral",
@@ -206,17 +210,9 @@ def validate_configuration():
                 f"{name} cannot be empty."
             )
 
-    if SWEEP_MODE == "plot":
-        for name in ["batch_sizes", "epoch_counts"]:
-            if not grid[name]:
-                raise ValueError(
-                    f"{name} cannot be empty."
-                )
-
 
 def make_dataset_config(seed):
     """Construct one dataset configuration."""
-
     if EXPERIMENT_KIND == "causal":
         return CausalDatasetConfig(
             T=T,
@@ -257,7 +253,9 @@ def make_dataset_config(seed):
         sensitivity_factor="model_sweep",
         sensitivity_value=MODEL_CHOICE,
         seed=int(seed),
-        spectral_experiment_name=experiment.name,
+        spectral_experiment_name=(
+            experiment.name
+        ),
         spectral_regime_coefficients=(
             experiment.coefficients.copy()
         ),
@@ -266,12 +264,12 @@ def make_dataset_config(seed):
 
 def generate_dataset(dataset_config):
     """Generate one causal or spectral dataset."""
-
     if EXPERIMENT_KIND == "causal":
         X, _, _ = generate_causal_dataset(
             dataset_config,
             causal_setup.EXPERIMENT_PARAMETERS,
         )
+
     else:
         X, _, _ = generate_spectral_dataset(
             dataset_config,
@@ -283,7 +281,6 @@ def generate_dataset(dataset_config):
 
 def get_base_model_parameters():
     """Return the selected experiment's model parameters."""
-
     if EXPERIMENT_KIND == "causal":
         return causal_setup.MODEL_PARAMETERS
 
@@ -297,67 +294,65 @@ def make_model_parameters(
     epochs,
 ):
     """Construct parameters for one sweep point."""
+    base_parameters = {
+        model_choice: parameters.copy()
+        for model_choice, parameters
+        in get_base_model_parameters().items()
+    }
 
-    base_parameters = (
-        get_base_model_parameters()
+    selected_parameters = (
+        base_parameters
+        .get(
+            MODEL_CHOICE,
+            {},
+        )
+        .copy()
     )
 
     if MODEL_CHOICE == "MLPModel":
-        mlp_parameters = replace(
-            base_parameters.mlp,
-            hidden_size=int(size),
-            learning_rate=float(
-                learning_rate
-            ),
-            batch_size=int(batch_size),
-            epochs=int(epochs),
+        selected_parameters.update(
+            {
+                "hidden_size": int(size),
+                "lr": float(learning_rate),
+                "batch_size": int(batch_size),
+                "epochs": int(epochs),
+            }
         )
 
-        return replace(
-            base_parameters,
-            mlp=mlp_parameters,
+    elif MODEL_CHOICE == "AEModel":
+        selected_parameters.update(
+            {
+                "bottleneck_size": int(size),
+                "lr": float(learning_rate),
+                "batch_size": int(batch_size),
+                "epochs": int(epochs),
+            }
         )
 
-    if MODEL_CHOICE == "AEModel":
-        ae_parameters = replace(
-            base_parameters.ae,
-            bottleneck_size=int(size),
-            learning_rate=float(
-                learning_rate
-            ),
-            batch_size=int(batch_size),
-            epochs=int(epochs),
+    elif MODEL_CHOICE == "RNNModel":
+        selected_parameters.update(
+            {
+                "hidden_size": int(size),
+                "lr": float(learning_rate),
+                "batch_size": int(batch_size),
+                "epochs": int(epochs),
+            }
         )
 
-        return replace(
-            base_parameters,
-            ae=ae_parameters,
+    else:
+        raise ValueError(
+            f"Unsupported model {MODEL_CHOICE!r}."
         )
 
-    if MODEL_CHOICE == "RNNModel":
-        rnn_parameters = replace(
-            base_parameters.rnn,
-            hidden_size=int(size),
-            learning_rate=float(
-                learning_rate
-            ),
-            batch_size=int(batch_size),
-            epochs=int(epochs),
-        )
-
-        return replace(
-            base_parameters,
-            rnn=rnn_parameters,
-        )
-
-    raise ValueError(
-        f"Unsupported model {MODEL_CHOICE!r}."
+    base_parameters[MODEL_CHOICE] = (
+        selected_parameters
     )
+
+    return base_parameters
 
 
 def make_competitor():
     """Construct the active model competitor."""
-
     return CompetitorConfig(
         model_choice=MODEL_CHOICE,
         score_direction=SCORE_DIRECTION,
@@ -369,7 +364,6 @@ def make_competitor():
 
 def set_model_seed(seed):
     """Set the model initialization seed."""
-
     if not PAIR_MODEL_INITIALIZATION:
         return
 
@@ -389,7 +383,6 @@ def run_one_configuration(
     model_seed,
 ):
     """Run one hyperparameter configuration."""
-
     set_model_seed(model_seed)
 
     model_parameters = make_model_parameters(
@@ -406,6 +399,8 @@ def run_one_configuration(
             L=MODEL_LAG_ORDER,
             candidates=candidates,
             competitor=make_competitor(),
+            device=DEVICE,
+            model_parameters=model_parameters,
             use_epsilon=USE_EPSILON,
             reverse_right_to_left=(
                 REVERSE_RIGHT_TO_LEFT
@@ -413,11 +408,15 @@ def run_one_configuration(
             split_train_validation=(
                 SPLIT_TRAIN_VALIDATION
             ),
-            val_frac=VALIDATION_FRACTION,
-            min_train=MIN_TRAIN_EXAMPLES,
-            min_val=MIN_VALIDATION_EXAMPLES,
-            device=DEVICE,
-            model_parameters=model_parameters,
+            validation_fraction=(
+                VALIDATION_FRACTION
+            ),
+            min_train_size=(
+                MIN_TRAIN_EXAMPLES
+            ),
+            min_validation_size=(
+                MIN_VALIDATION_EXAMPLES
+            ),
             verbose=False,
         )
     )
@@ -425,6 +424,7 @@ def run_one_configuration(
     absolute_error = abs(
         tau_hat - dataset_config.tau_star
     )
+
     percentage_error = (
         100.0
         * absolute_error
@@ -445,7 +445,6 @@ def run_one_configuration(
 
 def build_ranking(raw_results):
     """Aggregate and rank all configurations."""
-
     group_columns = [
         "model_choice",
         "size_name",
@@ -522,7 +521,6 @@ def build_ranking(raw_results):
 
 def run_sweep():
     """Run the configured hyperparameter sweep."""
-
     validate_configuration()
 
     grid = get_sweep_grid()
@@ -565,7 +563,10 @@ def run_sweep():
         dataset_config = make_dataset_config(
             seed
         )
-        X = generate_dataset(dataset_config)
+
+        X = generate_dataset(
+            dataset_config
+        )
 
         for combination_index, combination in enumerate(
             combinations,
@@ -608,9 +609,11 @@ def run_sweep():
 
                 status = "OK"
                 tau_hat = result["tau_hat"]
+
                 absolute_error = (
                     result["absolute_error"]
                 )
+
                 percentage_error = (
                     result["percentage_error"]
                 )
@@ -628,6 +631,9 @@ def run_sweep():
                     f"ERROR: "
                     f"{type(exc).__name__}: {exc}"
                 )
+
+                print(status)
+
                 tau_hat = np.nan
                 absolute_error = np.nan
                 percentage_error = np.nan
@@ -680,13 +686,14 @@ def plot_score_curves(
     output_path,
 ):
     """Plot one score curve per configuration."""
-
     grid = get_sweep_grid()
 
     sizes = grid["sizes"]
+
     learning_rates = (
         grid["learning_rates"]
     )
+
     batch_size = grid["batch_sizes"][0]
     epochs = grid["epoch_counts"][0]
 
@@ -726,6 +733,7 @@ def plot_score_curves(
                     f"lr={learning_rate:g}\n"
                     "ERROR"
                 )
+
                 ax.grid(alpha=0.25)
                 continue
 
@@ -735,6 +743,7 @@ def plot_score_curves(
                 sorted(scores),
                 dtype=int,
             )
+
             values = np.array(
                 [
                     scores[tau]
@@ -748,12 +757,14 @@ def plot_score_curves(
                 values,
                 linewidth=1.5,
             )
+
             ax.axvline(
                 tau_star,
                 linestyle="--",
                 linewidth=1.5,
                 label="True CP",
             )
+
             ax.axvline(
                 result["tau_hat"],
                 linestyle=":",
@@ -809,17 +820,18 @@ def plot_score_curves(
     fig.tight_layout(
         rect=[0, 0, 1, 0.95]
     )
+
     fig.savefig(
         output_path,
         dpi=PLOT_DPI,
         bbox_inches="tight",
     )
+
     plt.close(fig)
 
 
 def print_ranked_results(ranking):
     """Print the ranked configurations."""
-
     columns = [
         "rank",
         "size_name",
@@ -846,7 +858,6 @@ def print_ranked_results(ranking):
 
 def print_best_configuration(ranking):
     """Print the best successful configuration."""
-
     successful = ranking[
         ranking["num_successful"] > 0
     ]
@@ -862,26 +873,32 @@ def print_best_configuration(ranking):
     size_name = best["size_name"]
 
     print("\nBest configuration:")
+
     print(
         f"{size_name:<15} = "
         f"{int(best['size'])}"
     )
+
     print(
         "learning_rate   = "
         f"{best['learning_rate']:g}"
     )
+
     print(
         "batch_size      = "
         f"{int(best['batch_size'])}"
     )
+
     print(
         "epochs          = "
         f"{int(best['epochs'])}"
     )
+
     print(
         "mean localization error   = "
         f"{best['mean_localization_error']:.2f}"
     )
+
     print(
         "median localization error = "
         f"{best['median_localization_error']:.2f}"
@@ -938,10 +955,14 @@ def main():
         )
 
     if PRINT_RANKING:
-        print_ranked_results(ranking)
+        print_ranked_results(
+            ranking
+        )
 
     if PRINT_BEST_CONFIGURATION:
-        print_best_configuration(ranking)
+        print_best_configuration(
+            ranking
+        )
 
     print(
         f"\nOutput directory: "
