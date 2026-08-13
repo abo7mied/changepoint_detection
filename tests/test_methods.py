@@ -421,7 +421,12 @@ def test_cross_regime_forwards_device(monkeypatch):
         def test(self, X, Y):
             return np.zeros_like(Y), 1.0
 
-    def fake_make_model(model_choice, L, device):
+    def fake_make_model(
+        model_choice,
+        L,
+        device,
+        model_parameters=None,
+    ):
         devices.append(device)
         return DummyModel()
 
