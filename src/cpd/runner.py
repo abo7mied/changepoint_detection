@@ -424,7 +424,10 @@ def run_one_dataset(
 
     mechanism_heatmap_path = None
 
-    if runner_config.experiment_kind == "causal":
+    if (
+        runner_config.experiment_kind == "causal"
+        and generation_details is not None
+    ):
         mechanism_heatmap_path = (
             save_predictive_mechanism_heatmap(
                 coefficient_graphs=generation_details,
@@ -539,6 +542,7 @@ def run_one_dataset(
 
     if (
         runner_config.experiment_kind == "causal"
+        and generation_details is not None
         and runner_config.plot_config
         .save_predictive_mechanism_heatmaps
     ):
