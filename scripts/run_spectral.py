@@ -16,12 +16,6 @@ from cpd.experiments.spectral import (
     generate_dataset,
     iter_dataset_configs,
 )
-from cpd.models import (
-    AEParameters,
-    MLPParameters,
-    ModelParameters,
-    RNNParameters,
-)
 from cpd.plotting import PlotConfig
 from cpd.runner import (
     RunnerConfig,
@@ -230,29 +224,29 @@ SPECTRAL_VARIABLE_ORDER = tuple(
 
 # --- 5: Configuration Assembly ---
 
-MODEL_PARAMETERS = ModelParameters(
-    mlp=MLPParameters(
-        hidden_size=MLP_HIDDEN_SIZE,
-        learning_rate=MLP_LEARNING_RATE,
-        epochs=MLP_EPOCHS,
-        batch_size=MLP_BATCH_SIZE,
-        loss_type="mse",
-    ),
-    rnn=RNNParameters(
-        hidden_size=RNN_HIDDEN_SIZE,
-        learning_rate=RNN_LEARNING_RATE,
-        epochs=RNN_EPOCHS,
-        batch_size=RNN_BATCH_SIZE,
-        loss_type="mse",
-    ),
-    ae=AEParameters(
-        bottleneck_size=AE_BOTTLENECK_SIZE,
-        learning_rate=AE_LEARNING_RATE,
-        epochs=AE_EPOCHS,
-        batch_size=AE_BATCH_SIZE,
-        loss_type="mse",
-    ),
-)
+MODEL_PARAMETERS = {
+    "MLPModel": {
+        "hidden_size": MLP_HIDDEN_SIZE,
+        "lr": MLP_LEARNING_RATE,
+        "epochs": MLP_EPOCHS,
+        "batch_size": MLP_BATCH_SIZE,
+        "loss_type": "mse",
+    },
+    "RNNModel": {
+        "hidden_size": RNN_HIDDEN_SIZE,
+        "lr": RNN_LEARNING_RATE,
+        "epochs": RNN_EPOCHS,
+        "batch_size": RNN_BATCH_SIZE,
+        "loss_type": "mse",
+    },
+    "AEModel": {
+        "bottleneck_size": AE_BOTTLENECK_SIZE,
+        "lr": AE_LEARNING_RATE,
+        "epochs": AE_EPOCHS,
+        "batch_size": AE_BATCH_SIZE,
+        "loss_type": "mse",
+    },
+}
 
 EXPERIMENT_PARAMETERS = SpectralExperimentParameters(
     dataset_lengths=DATASET_LENGTHS,
