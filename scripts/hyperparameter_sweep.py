@@ -114,37 +114,45 @@ def get_sweep_grid():
     """Return the active model's sweep grid."""
 
     if MODEL_CHOICE == "MLPModel":
-        return {
+        grid = {
             "size_name": "hidden_size",
             "sizes": MLP_HIDDEN_SIZES,
             "learning_rates": MLP_LEARNING_RATES,
             "batch_sizes": MLP_BATCH_SIZES,
             "epoch_counts": MLP_EPOCH_COUNTS,
         }
-
-    if MODEL_CHOICE == "AEModel":
-        return {
+    elif MODEL_CHOICE == "AEModel":
+        grid = {
             "size_name": "bottleneck_size",
             "sizes": AE_BOTTLENECK_SIZES,
             "learning_rates": AE_LEARNING_RATES,
             "batch_sizes": AE_BATCH_SIZES,
             "epoch_counts": AE_EPOCH_COUNTS,
         }
-
-    if MODEL_CHOICE == "RNNModel":
-        return {
+    elif MODEL_CHOICE == "RNNModel":
+        grid = {
             "size_name": "hidden_size",
             "sizes": RNN_HIDDEN_SIZES,
             "learning_rates": RNN_LEARNING_RATES,
             "batch_sizes": RNN_BATCH_SIZES,
             "epoch_counts": RNN_EPOCH_COUNTS,
         }
+    else:
+        raise ValueError(
+            "MODEL_CHOICE must be 'MLPModel', "
+            "'AEModel', or 'RNNModel'. "
+            f"Got {MODEL_CHOICE!r}."
+        )
 
-    raise ValueError(
-        "MODEL_CHOICE must be 'MLPModel', "
-        "'AEModel', or 'RNNModel'. "
-        f"Got {MODEL_CHOICE!r}."
-    )
+    if SWEEP_MODE == "plot":
+        for key in ["batch_sizes", "epoch_counts"]:
+            if not grid[key]:
+                raise ValueError(
+                    f"{key} cannot be empty."
+                )
+            grid[key] = [grid[key][0]]
+
+    return grid
 
 
 def validate_configuration():
@@ -199,17 +207,11 @@ def validate_configuration():
             )
 
     if SWEEP_MODE == "plot":
-        if len(grid["batch_sizes"]) != 1:
-            raise ValueError(
-                "Plot mode requires exactly "
-                "one batch size."
-            )
-
-        if len(grid["epoch_counts"]) != 1:
-            raise ValueError(
-                "Plot mode requires exactly "
-                "one epoch count."
-            )
+        for name in ["batch_sizes", "epoch_counts"]:
+            if not grid[name]:
+                raise ValueError(
+                    f"{name} cannot be empty."
+                )
 
 
 def make_dataset_config(seed):

@@ -1,0 +1,17 @@
+rank,model_choice,size_name,size,learning_rate,batch_size,epochs,num_runs,num_successful,mean_localization_error,median_localization_error,std_localization_error,mean_percentage_error,median_percentage_error,num_failed
+1,MLPModel,hidden_size,8,0.01,8,50,1,0,,,,,,1
+2,MLPModel,hidden_size,8,0.05,8,50,1,0,,,,,,1
+3,MLPModel,hidden_size,8,0.1,8,50,1,0,,,,,,1
+4,MLPModel,hidden_size,8,0.5,8,50,1,0,,,,,,1
+5,MLPModel,hidden_size,16,0.01,8,50,1,0,,,,,,1
+6,MLPModel,hidden_size,16,0.05,8,50,1,0,,,,,,1
+7,MLPModel,hidden_size,16,0.1,8,50,1,0,,,,,,1
+8,MLPModel,hidden_size,16,0.5,8,50,1,0,,,,,,1
+9,MLPModel,hidden_size,32,0.01,8,50,1,0,,,,,,1
+10,MLPModel,hidden_size,32,0.05,8,50,1,0,,,,,,1
+11,MLPModel,hidden_size,32,0.1,8,50,1,0,,,,,,1
+12,MLPModel,hidden_size,32,0.5,8,50,1,0,,,,,,1
+13,MLPModel,hidden_size,64,0.01,8,50,1,0,,,,,,1
+14,MLPModel,hidden_size,64,0.05,8,50,1,0,,,,,,1
+15,MLPModel,hidden_size,64,0.1,8,50,1,0,,,,,,1
+16,MLPModel,hidden_size,64,0.5,8,50,1,0,,,,,,1
