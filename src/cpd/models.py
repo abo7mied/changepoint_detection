@@ -72,7 +72,7 @@ class VARModel(ForecastModel):
     def fit(self, X, Y):
         if Y is None:
             raise ValueError("VARModel.fit requires labels Y.")
-        
+
         X = np.asarray(X, dtype=float)
         X = X.reshape(len(X), -1)
         Y = np.asarray(Y, dtype=float)
@@ -102,9 +102,26 @@ class VARModel(ForecastModel):
 class MLPModel(ForecastModel):
     """MLP forecasting model."""
 
-    def __init__(self, L, device):
+    def __init__(
+        self,
+        L,
+        device="cpu",
+        hidden_size=32,
+        lr=0.5,
+        epochs=500,
+        batch_size=8,
+        loss_type="mse",
+        print_loss=False,
+    ):
         super().__init__(L)
+
         self.device = device
+        self.hidden_size = hidden_size
+        self.lr = lr
+        self.epochs = epochs
+        self.batch_size = batch_size
+        self.loss_type = loss_type
+        self.print_loss = print_loss
 
     def fit(self, X, Y):
         if Y is None:
@@ -121,31 +138,25 @@ class MLPModel(ForecastModel):
 
         d = len(X[0][0])
         n_x = self.L * d
-        n_h = 32
         n_y = d
 
         self.model = MLP(
             n_x=n_x,
-            n_h=n_h,
+            n_h=self.hidden_size,
             n_y=n_y,
             device=self.device,
         )
 
         X = X.reshape(len(X), -1)
 
-        lr = 0.5
-        epochs = 500
-        batch_size = 8
-        loss_type = "mse"
-
         self.model.train(
             X=X.T,
             Y=Y.T,
-            lr=lr,
-            epochs=epochs,
-            batch_size=batch_size,
-            loss_type=loss_type,
-            print_loss=False,
+            lr=self.lr,
+            epochs=self.epochs,
+            batch_size=self.batch_size,
+            loss_type=self.loss_type,
+            print_loss=self.print_loss,
         )
 
     def predict(self, X):
@@ -159,6 +170,7 @@ class MLPModel(ForecastModel):
     def test(self, X, Y):
         if Y is None:
             raise ValueError("MLPModel.test requires labels Y.")
+
         Y = np.asarray(Y, dtype=float)
         preds = self.predict(X)
 
@@ -168,10 +180,29 @@ class MLPModel(ForecastModel):
 class RNNModel(ForecastModel):
     """RNN forecasting model."""
 
+    def __init__(
+        self,
+        L,
+        hidden_size=16,
+        lr=0.1,
+        epochs=200,
+        batch_size=16,
+        loss_type="mse",
+        print_loss=False,
+    ):
+        super().__init__(L)
+
+        self.hidden_size = hidden_size
+        self.lr = lr
+        self.epochs = epochs
+        self.batch_size = batch_size
+        self.loss_type = loss_type
+        self.print_loss = print_loss
+
     def fit(self, X, Y):
         if Y is None:
             raise ValueError("RNNModel.fit requires labels Y.")
-        
+
         if RNN is None:
             raise ImportError(
                 "RNNModel requires "
@@ -183,26 +214,21 @@ class RNNModel(ForecastModel):
 
         self.model = RNN(
             d_x=len(X[0][0]),
-            d_h=16,
+            d_h=self.hidden_size,
             d_y=len(X[0][0]),
             n_x=self.L,
             n_y=1,
             first_output_step=self.L - 1,
         )
 
-        lr = 0.1
-        epochs = 200
-        batch_size = 16
-        loss_type = "mse"
-
         self.model.train(
             X=X,
             Y=Y,
-            lr=lr,
-            epochs=epochs,
-            batch_size=batch_size,
-            loss_type=loss_type,
-            print_loss=False,
+            lr=self.lr,
+            epochs=self.epochs,
+            batch_size=self.batch_size,
+            loss_type=self.loss_type,
+            print_loss=self.print_loss,
         )
 
     def predict(self, X):
@@ -222,6 +248,7 @@ class RNNModel(ForecastModel):
     def test(self, X, Y):
         if Y is None:
             raise ValueError("RNNModel.test requires labels Y.")
+
         Y = np.asarray(Y, dtype=float)
         preds = self.predict(X)
 
@@ -231,9 +258,26 @@ class RNNModel(ForecastModel):
 class AEModel(ForecastModel):
     """Autoencoder reconstruction model."""
 
-    def __init__(self, L, device):
+    def __init__(
+        self,
+        L,
+        device="cpu",
+        bottleneck_size=4,
+        lr=0.1,
+        epochs=200,
+        batch_size=16,
+        loss_type="mse",
+        print_loss=False,
+    ):
         super().__init__(L)
+
         self.device = device
+        self.bottleneck_size = bottleneck_size
+        self.lr = lr
+        self.epochs = epochs
+        self.batch_size = batch_size
+        self.loss_type = loss_type
+        self.print_loss = print_loss
 
     def fit(self, X, Y=None):
         if MLP is None:
@@ -246,31 +290,25 @@ class AEModel(ForecastModel):
 
         d = len(X[0][0])
         n_x = self.L * d
-        n_h = 4
         n_y = n_x
 
         self.model = MLP(
             n_x=n_x,
-            n_h=n_h,
+            n_h=self.bottleneck_size,
             n_y=n_y,
             device=self.device,
         )
 
         X = X.reshape(len(X), -1)
 
-        lr = 0.1
-        epochs = 200
-        batch_size = 16
-        loss_type = "mse"
-
         self.model.train(
             X=X.T,
             Y=X.T,
-            lr=lr,
-            epochs=epochs,
-            batch_size=batch_size,
-            loss_type=loss_type,
-            print_loss=False,
+            lr=self.lr,
+            epochs=self.epochs,
+            batch_size=self.batch_size,
+            loss_type=self.loss_type,
+            print_loss=self.print_loss,
         )
 
     def predict(self, X):
@@ -289,19 +327,41 @@ class AEModel(ForecastModel):
         return preds, np.mean((preds - X_flat) ** 2)
 
 
-def make_model(model_choice, L, device):
+def make_model(
+    model_choice,
+    L,
+    device="cpu",
+    model_parameters=None,
+):
     """Construct a competitor model."""
+    parameters = (
+        {}
+        if model_parameters is None
+        else dict(model_parameters)
+    )
+
     if model_choice == "VARModel":
         return VARModel(L)
 
     if model_choice == "MLPModel":
-        return MLPModel(L, device)
+        parameters.setdefault("device", device)
+        return MLPModel(
+            L=L,
+            **parameters,
+        )
 
     if model_choice == "RNNModel":
-        return RNNModel(L)
+        return RNNModel(
+            L=L,
+            **parameters,
+        )
 
     if model_choice == "AEModel":
-        return AEModel(L, device)
+        parameters.setdefault("device", device)
+        return AEModel(
+            L=L,
+            **parameters,
+        )
 
     valid = [
         "VARModel",
