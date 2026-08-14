@@ -736,8 +736,8 @@ def _make_dataset_config(
     parameters,
 ):
     dimension = _coerce_positive_integer(
-    values["dimension"],
-    "Dimension",
+        values["dimension"],
+        "Dimension",
     )
     T = _coerce_positive_integer(values["T"], "Dataset length T")
     data_lag_order = _coerce_positive_integer(
@@ -803,17 +803,17 @@ def _make_dataset_config(
     if spectral_experiment is not None:
         expected_shape = (
             parameters.num_regimes,
-            config.dimension,
+            dimension,
             6,
         )
 
-    if spectral_experiment.coefficients.shape != expected_shape:
-        raise ValueError(
-            "Spectral coefficients must have shape "
-            f"{expected_shape}. Got "
-            f"{spectral_experiment.coefficients.shape}."
-        )
-    
+        if spectral_experiment.coefficients.shape != expected_shape:
+            raise ValueError(
+                "Spectral coefficients must have shape "
+                f"{expected_shape}. Got "
+                f"{spectral_experiment.coefficients.shape}."
+            )
+
     return DatasetConfig(
         T=T,
         sigma=sigma,
@@ -906,7 +906,7 @@ def iter_dataset_configs(
                 parameters.dataset_var_lag_orders,
                 "dataset_var_lag_orders",
             ),
-                _normalize_grid_choices(
+            _normalize_grid_choices(
                 parameters.dimension_sizes,
                 "dimension_sizes",
             ),
@@ -999,9 +999,9 @@ def iter_dataset_configs(
                 parameters.dataset_var_lag_orders,
             ),
             (
-            "dimension",
-            "dimension",
-            parameters.dimension_sizes,
+                "dimension",
+                "dimension",
+                parameters.dimension_sizes,
             ),
         ]
 
@@ -1067,7 +1067,7 @@ def iter_dataset_configs(
                         defaults.copy(),
                         experiment,
                     )
-        )
+                )
 
         for choice in _normalize_grid_choices(
             parameters.model_lag_orders,
