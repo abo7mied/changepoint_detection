@@ -646,4 +646,31 @@ def dataset_config_summary(config):
             config.spectral_experiment_name
         )
 
+    optional_fields = [
+        "observation_id",
+        "patient_number",
+        "section_number",
+        "section_start",
+        "section_end",
+        "target_changepoint",
+        "sample_frequency",
+        "channel_labels",
+        "min_annotators",
+    ]
+
+    for field_name in optional_fields:
+        if not hasattr(config, field_name):
+            continue
+
+        value = getattr(config, field_name)
+
+        if isinstance(value, np.ndarray):
+            value = value.tolist()
+        elif isinstance(value, tuple):
+            value = list(value)
+        elif isinstance(value, np.generic):
+            value = value.item()
+
+        summary[field_name] = value
+
     return summary
