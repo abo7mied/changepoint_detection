@@ -76,6 +76,7 @@ class RunnerConfig:
 
     sampling_rate: Optional[float] = None
     spectral_band_names: Sequence[str] = ()
+    full_experiment_mode: str = "seed_replicates"
 
     cross_regime_kwargs: Mapping[str, Any] = field(
         default_factory=dict
@@ -92,6 +93,16 @@ class RunnerConfig:
             raise ValueError(
                 "experiment_kind must be 'causal' or 'spectral'. "
                 f"Got {self.experiment_kind!r}."
+            )
+
+        if self.full_experiment_mode not in {
+            "seed_replicates",
+            "observed_datasets",
+        }:
+            raise ValueError(
+                "full_experiment_mode must be "
+                "'seed_replicates' or 'observed_datasets'. "
+                f"Got {self.full_experiment_mode!r}."
             )
 
 
@@ -426,20 +437,29 @@ def run_one_dataset(
 
     if (
         runner_config.experiment_kind == "causal"
-        and generation_details is not None
+        and runner_config.plot_config
+        .save_predictive_mechanism_heatmaps
     ):
-        mechanism_heatmap_path = (
-            save_predictive_mechanism_heatmap(
-                coefficient_graphs=generation_details,
-                dataset_config=dataset_config,
-                num_regimes=2,
-                plot_config=runner_config.plot_config,
-                output_dir=(
-                    output_paths
-                    .predictive_mechanism_heatmaps_dir
-                ),
+        coefficient_graphs = generation_details
+
+        if isinstance(generation_details, Mapping):
+            coefficient_graphs = generation_details.get(
+                "coefficient_graphs"
             )
-        )
+
+        if coefficient_graphs is not None:
+            mechanism_heatmap_path = (
+                save_predictive_mechanism_heatmap(
+                    coefficient_graphs=coefficient_graphs,
+                    dataset_config=dataset_config,
+                    num_regimes=2,
+                    plot_config=runner_config.plot_config,
+                    output_dir=(
+                        output_paths
+                        .predictive_mechanism_heatmaps_dir
+                    ),
+                )
+            )
 
     competitors = list(
         dependencies.iter_competitors(
@@ -926,11 +946,298 @@ def build_global_method_summary(
     return rows
 
 
+def run_full_observed_dataset_experiment(
+    runner_config,
+    dependencies,
+):
+    """Run every observed dataset once and aggregate the results."""
+
+    dataset_configs = list(
+        dependencies.iter_dataset_configs()
+    )
+
+    if not dataset_configs:
+        raise ValueError(
+            "The observed-dataset experiment has no datasets."
+        )
+
+    competitor_counts = [
+        len(
+            list(
+                dependencies.iter_competitors(
+                    config
+                )
+            )
+        )
+        for config in dataset_configs
+    ]
+
+    num_competitors_per_observation = (
+        competitor_counts[0]
+        if (
+            competitor_counts
+            and len(set(competitor_counts)) == 1
+        )
+        else competitor_counts
+    )
+
+    full_root = create_unique_directory(
+        runner_config.full_experiment_outputs_base_dir
+    )
+    observations_dir = full_root / "observations"
+    box_plots_dir = full_root / "box_plots"
+
+    observations_dir.mkdir(
+        parents=False,
+        exist_ok=False,
+    )
+    box_plots_dir.mkdir(
+        parents=False,
+        exist_ok=False,
+    )
+
+    observation_records = []
+    results_by_competitor = {}
+
+    print("Full observed-dataset CPD experiment")
+    print(
+        "Experiment design mode: "
+        f"{runner_config.experiment_design_mode}"
+    )
+    print(f"Output directory: {full_root}")
+    print(
+        "Number of observed datasets: "
+        f"{len(dataset_configs)}"
+    )
+    print(
+        "Competitors per observation: "
+        f"{num_competitors_per_observation}"
+    )
+
+    for observation_index, dataset_config in enumerate(
+        dataset_configs,
+        start=1,
+    ):
+        observation_name = full_experiment_setup_name(
+            dataset_config,
+            observation_index,
+        ).replace("setup_", "observation_", 1)
+
+        observation_dir = (
+            observations_dir / observation_name
+        )
+        observation_paths = (
+            create_experiment_output_paths_at(
+                run_dir=observation_dir,
+                experiment_kind=(
+                    runner_config.experiment_kind
+                ),
+                saving_config=(
+                    runner_config.saving_config
+                ),
+            )
+        )
+
+        print("\n" + "=" * 100)
+        print(
+            f"Observation {observation_index}/"
+            f"{len(dataset_configs)}"
+        )
+        print(dataset_config.label)
+        print("=" * 100)
+
+        results = run_one_dataset(
+            dataset_config=dataset_config,
+            runner_config=runner_config,
+            dependencies=dependencies,
+            output_paths=observation_paths,
+        )
+
+        csv_path, md_path = save_setup_replicate_table(
+            results=results,
+            dataset_label=dataset_config.label,
+            csv_path=(
+                observation_paths.final_table_csv_path
+            ),
+            md_path=(
+                observation_paths.final_table_md_path
+            ),
+            analysis_domain_name=(
+                runner_config.analysis_domain_name
+            ),
+        )
+
+        for result in results:
+            results_by_competitor.setdefault(
+                result.competitor_label,
+                [],
+            ).append(result)
+
+        observation_records.append({
+            "observation_index": observation_index,
+            "dataset_config": dataset_config,
+            "directory": relative_output_path(
+                observation_paths.run_dir,
+                full_root,
+            ),
+            "final_table_csv": relative_output_path(
+                csv_path,
+                full_root,
+            ),
+            "final_table_markdown": (
+                relative_output_path(
+                    md_path,
+                    full_root,
+                )
+            ),
+            "raw_results": results,
+        })
+
+    boxplot_paths = {}
+
+    for metric in [
+        "pct_error",
+        "abs_error",
+    ]:
+        boxplot_paths[metric] = (
+            save_pairwise_replicate_boxplots(
+                replicate_records=observation_records,
+                metric=metric,
+                setup_label="all observed datasets",
+                output_dir=box_plots_dir,
+                plot_config=runner_config.plot_config,
+            )
+        )
+
+    serialized_observations = []
+
+    for record in observation_records:
+        dataset_config = record["dataset_config"]
+
+        serialized_observations.append({
+            "observation_index": (
+                record["observation_index"]
+            ),
+            "observation_id": getattr(
+                dataset_config,
+                "observation_id",
+                dataset_config.label,
+            ),
+            "parameters": dataset_config_summary(
+                dataset_config
+            ),
+            "directory": record["directory"],
+            "final_table_csv": (
+                record["final_table_csv"]
+            ),
+            "final_table_markdown": (
+                record["final_table_markdown"]
+            ),
+            "results": [
+                serialize_experiment_result(
+                    result,
+                    full_root,
+                )
+                for result in record["raw_results"]
+            ],
+        })
+
+    patient_numbers = {
+        int(config.patient_number)
+        for config in dataset_configs
+        if hasattr(config, "patient_number")
+    }
+
+    full_summary = {
+        "mode": "full_observed_dataset_experiment",
+        "experiment_design_mode": (
+            runner_config.experiment_design_mode
+        ),
+        "output_directory": str(full_root),
+        "num_observed_datasets": len(dataset_configs),
+        "num_patients": (
+            len(patient_numbers)
+            if patient_numbers
+            else None
+        ),
+        "num_competitors_per_observation": (
+            num_competitors_per_observation
+        ),
+        "ranking_metric": (
+            "mean percentage localization error "
+            "across observed datasets"
+        ),
+        "global_method_summary_and_ranking": (
+            build_global_method_summary(
+                results_by_competitor
+            )
+        ),
+        "box_plots": {
+            "percentage_error": [
+                relative_output_path(
+                    path,
+                    full_root,
+                )
+                for path in boxplot_paths["pct_error"]
+            ],
+            "absolute_error": [
+                relative_output_path(
+                    path,
+                    full_root,
+                )
+                for path in boxplot_paths["abs_error"]
+            ],
+        },
+        "observations": serialized_observations,
+        "plot_manifest": collect_plot_manifest(
+            directory=full_root,
+            root_dir=full_root,
+            plot_format=(
+                runner_config.plot_config.plot_format
+            ),
+        ),
+    }
+
+    full_summary_path = (
+        full_root
+        / runner_config
+        .full_experiment_summary_filename
+    )
+    full_summary["summary_json"] = (
+        relative_output_path(
+            full_summary_path,
+            full_root,
+        )
+    )
+
+    save_json(
+        full_summary,
+        full_summary_path,
+    )
+
+    print("\n" + "=" * 100)
+    print("FULL OBSERVED-DATASET EXPERIMENT COMPLETE")
+    print(f"Output directory: {full_root}")
+    print(f"Summary JSON: {full_summary_path}")
+    print("=" * 100)
+
+    return full_summary
+
+
 def run_full_replicate_experiment(
     runner_config,
     dependencies,
 ):
     """Run every setup over the shared replicate seeds."""
+
+    if (
+        runner_config.full_experiment_mode
+        == "observed_datasets"
+    ):
+        return run_full_observed_dataset_experiment(
+            runner_config,
+            dependencies,
+        )
 
     base_dataset_configs = list(
         dependencies.iter_dataset_configs()
