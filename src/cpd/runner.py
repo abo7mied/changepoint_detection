@@ -280,6 +280,10 @@ def evaluate_one_competitor(
                 cross_regime_kwargs[
                     "split_train_validation"
                 ] = competitor.split_train_validation
+            if competitor.normalize_by_within_regime_error is not None:
+                cross_regime_kwargs[
+                    "normalize_by_within_regime_error"
+                ] = competitor.normalize_by_within_regime_error
             cross_regime_kwargs.setdefault(
                 "verbose",
                 runner_config.verbose_candidate_progress,

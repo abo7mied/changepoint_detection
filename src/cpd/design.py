@@ -22,6 +22,7 @@ class CompetitorConfig:
     window_size: int
     reverse_right_to_left: Optional[bool] = None
     split_train_validation: Optional[bool] = None
+    normalize_by_within_regime_error: Optional[bool] = None
 
     @property
     def forward_only(self):
@@ -63,6 +64,11 @@ class CompetitorConfig:
             + (
                 f" | split={self.split_train_validation}"
                 if self.split_train_validation is not None
+                else ""
+            )
+            + (
+                f" | normalize={self.normalize_by_within_regime_error}"
+                if self.normalize_by_within_regime_error is not None
                 else ""
             )
         )

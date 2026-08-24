@@ -60,8 +60,9 @@ def compute_log_normalized_score(
     score_direction="forward_backward",
     epsilon=1e-10,
     use_epsilon=True,
+    normalize_by_within_regime_error=True,
 ):
-    """Compute the forward or forward-backward score."""
+    """Compute a log score, optionally normalized by within-regime error."""
     if use_epsilon and epsilon <= 0:
         raise ValueError(
             f"epsilon must be positive. Got {epsilon}."
@@ -69,19 +70,19 @@ def compute_log_normalized_score(
 
     offset = epsilon if use_epsilon else 0.0
 
-    forward_score = math.log(
-        (left_on_right_error + offset)
-        / (left_on_left_error + offset)
-    )
+    forward_numerator = left_on_right_error + offset
+    if normalize_by_within_regime_error:
+        forward_numerator /= left_on_left_error + offset
+    forward_score = math.log(forward_numerator)
 
     if score_direction == "forward_only":
         return float(forward_score)
 
     if score_direction == "forward_backward":
-        backward_score = math.log(
-            (right_on_left_error + offset)
-            / (right_on_right_error + offset)
-        )
+        backward_numerator = right_on_left_error + offset
+        if normalize_by_within_regime_error:
+            backward_numerator /= right_on_right_error + offset
+        backward_score = math.log(backward_numerator)
 
         return float(
             forward_score + backward_score
@@ -105,6 +106,7 @@ def estimate_causal_cpd_log_normalized_cross_regime(
     use_epsilon=True,
     reverse_right_to_left=True,
     split_train_validation=False,
+    normalize_by_within_regime_error=True,
     validation_fraction=0.3,
     min_train_size=5,
     min_validation_size=5,
@@ -316,6 +318,15 @@ def estimate_causal_cpd_log_normalized_cross_regime(
             score_direction=competitor.score_direction,
             epsilon=competitor.epsilon,
             use_epsilon=use_epsilon,
+            normalize_by_within_regime_error=(
+                normalize_by_within_regime_error
+                if getattr(
+                    competitor,
+                    "normalize_by_within_regime_error",
+                    None,
+                ) is None
+                else competitor.normalize_by_within_regime_error
+            ),
         )
 
         if not np.isfinite(score):

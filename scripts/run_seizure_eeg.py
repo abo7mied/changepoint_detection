@@ -102,6 +102,7 @@ FULL_EXPERIMENT_MODE = "observed_datasets"
 
 RUN_FULL_EXPERIMENT = True
 SWEEP_CROSS_REGIME_VARIANTS = False
+SWEEP_WITHOUT_WITHIN_REGIME_DIVISION = False
 
 VERBOSE_CANDIDATE_PROGRESS = True
 PRINT_SCORES = False
@@ -289,6 +290,12 @@ def configured_competitors(
             )
         ]
 
+    normalization_options = (
+        [True, False]
+        if SWEEP_WITHOUT_WITHIN_REGIME_DIVISION
+        else [None]
+    )
+
     for model_choice in MODEL_CHOICES:
         if model_choice == "KMOVARScore":
             for h_choice in KMO_H_CHOICES:
@@ -314,7 +321,8 @@ def configured_competitors(
             reverse_right_to_left,
         ) in cross_regime_variants:
             for epsilon in EPSILON_VALUES:
-                yield CompetitorConfig(
+                for normalize in normalization_options:
+                    yield CompetitorConfig(
                     model_choice=model_choice,
                     score_direction=score_direction,
                     epsilon=epsilon,
@@ -324,13 +332,16 @@ def configured_competitors(
                     window_size=(
                         dataset_config.window_size
                     ),
-                    split_train_validation=(
-                        split_train_validation
-                    ),
-                    reverse_right_to_left=(
-                        reverse_right_to_left
-                    ),
-                )
+                        split_train_validation=(
+                            split_train_validation
+                        ),
+                        reverse_right_to_left=(
+                            reverse_right_to_left
+                        ),
+                        normalize_by_within_regime_error=(
+                            normalize
+                        ),
+                    )
 
 
 def configured_dataset_generator(

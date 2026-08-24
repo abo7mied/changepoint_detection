@@ -104,6 +104,23 @@ def test_forward_backward_score():
     assert score == pytest.approx(expected)
 
 
+def test_score_without_within_regime_division():
+    score = compute_log_normalized_score(
+        left_on_right_error=4.0,
+        left_on_left_error=2.0,
+        right_on_left_error=9.0,
+        right_on_right_error=3.0,
+        score_direction="forward_backward",
+        epsilon=1e-8,
+        use_epsilon=True,
+        normalize_by_within_regime_error=False,
+    )
+
+    expected = math.log(4.0 + 1e-8) + math.log(9.0 + 1e-8)
+
+    assert score == pytest.approx(expected)
+
+
 def test_score_without_epsilon():
     score = compute_log_normalized_score(
         left_on_right_error=4.0,

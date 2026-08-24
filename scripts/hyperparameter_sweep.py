@@ -59,6 +59,7 @@ SWEEP_MODE = "plot"
 DEFAULT_ONLY = False
 
 SWEEP_CROSS_REGIME_VARIANTS = False
+SWEEP_WITHOUT_WITHIN_REGIME_DIVISION = False
 CROSS_REGIME_SCORE_DIRECTIONS = [
     "forward_backward",
     "forward_only",
@@ -374,25 +375,33 @@ def make_model_parameters(
 def configured_cross_regime_variants():
     """Return the active cross-regime method variants."""
     if SWEEP_CROSS_REGIME_VARIANTS:
-        return product(
+        cross_regime_variants = product(
             CROSS_REGIME_SCORE_DIRECTIONS,
             CROSS_REGIME_SPLIT_OPTIONS,
             CROSS_REGIME_REVERSAL_OPTIONS,
         )
+    else:
+        cross_regime_variants = [
+            (SCORE_DIRECTION, None, None)
+        ]
 
-    return [
-        (
-            SCORE_DIRECTION,
-            None,
-            None,
-        )
-    ]
+    normalization_options = (
+        [True, False]
+        if SWEEP_WITHOUT_WITHIN_REGIME_DIVISION
+        else [None]
+    )
+
+    return product(
+        cross_regime_variants,
+        normalization_options,
+    )
 
 
 def make_competitor(
     score_direction=SCORE_DIRECTION,
     split_train_validation=SPLIT_TRAIN_VALIDATION,
     reverse_right_to_left=REVERSE_RIGHT_TO_LEFT,
+        normalize_by_within_regime_error=None,
 ):
     """Construct the active model competitor."""
     return CompetitorConfig(
@@ -403,6 +412,9 @@ def make_competitor(
         window_size=WINDOW_SIZE,
         split_train_validation=split_train_validation,
         reverse_right_to_left=reverse_right_to_left,
+            normalize_by_within_regime_error=(
+                normalize_by_within_regime_error
+            ),
     )
 
 
@@ -428,6 +440,7 @@ def run_one_configuration(
     score_direction=SCORE_DIRECTION,
     split_train_validation=SPLIT_TRAIN_VALIDATION,
     reverse_right_to_left=REVERSE_RIGHT_TO_LEFT,
+        normalize_by_within_regime_error=None,
 ):
     """Run one hyperparameter configuration."""
     set_model_seed(model_seed)
@@ -449,16 +462,15 @@ def run_one_configuration(
                 score_direction=score_direction,
                 split_train_validation=split_train_validation,
                 reverse_right_to_left=reverse_right_to_left,
+                    normalize_by_within_regime_error=(
+                        normalize_by_within_regime_error
+                    ),
             ),
             device=DEVICE,
             model_parameters=model_parameters,
             use_epsilon=USE_EPSILON,
-            reverse_right_to_left=(
-                REVERSE_RIGHT_TO_LEFT
-            ),
-            split_train_validation=(
-                SPLIT_TRAIN_VALIDATION
-            ),
+            reverse_right_to_left=reverse_right_to_left,
+            split_train_validation=split_train_validation,
             validation_fraction=(
                 VALIDATION_FRACTION
             ),
@@ -506,6 +518,7 @@ def build_ranking(raw_results):
         "score_direction",
         "split_train_validation",
         "reverse_right_to_left",
+        "normalize_by_within_regime_error",
     ]
 
     ranking = (
@@ -642,7 +655,7 @@ def run_sweep():
                 score_direction,
                 split_train_validation,
                 reverse_right_to_left,
-            ) = method_variant
+            ), normalize_by_within_regime_error = method_variant
 
             if PRINT_EACH_RUN:
                 print(
@@ -680,6 +693,9 @@ def run_sweep():
                     reverse_right_to_left=(
                         reverse_right_to_left
                     ),
+                    normalize_by_within_regime_error=(
+                        normalize_by_within_regime_error
+                    ),
                 )
 
                 status = "OK"
@@ -703,6 +719,7 @@ def run_sweep():
                             score_direction,
                             split_train_validation,
                             reverse_right_to_left,
+                            normalize_by_within_regime_error,
                         )
                     ] = result
 
@@ -743,6 +760,9 @@ def run_sweep():
                     ),
                     "reverse_right_to_left": (
                         reverse_right_to_left
+                    ),
+                    "normalize_by_within_regime_error": (
+                        normalize_by_within_regime_error
                     ),
                     "tau_star": int(
                         dataset_config.tau_star
@@ -829,7 +849,7 @@ def plot_score_curves(
             score_direction,
             split_train_validation,
             reverse_right_to_left,
-        ) = method_variant
+        ), normalize_by_within_regime_error = method_variant
 
         result = score_results.get(
             (
@@ -840,6 +860,7 @@ def plot_score_curves(
                 score_direction,
                 split_train_validation,
                 reverse_right_to_left,
+                normalize_by_within_regime_error,
             )
         )
 
@@ -850,7 +871,8 @@ def plot_score_curves(
             f"epochs={epochs}\n"
             f"score={score_direction}, "
             f"split={split_train_validation}, "
-            f"reverse={reverse_right_to_left}"
+            f"reverse={reverse_right_to_left}, "
+            f"normalize={normalize_by_within_regime_error}"
         )
 
         if result is None:
