@@ -284,11 +284,11 @@ SAVE_COEFFICIENT_HEATMAPS = True
 ANALYSIS_DOMAIN_NAME = "mixture"
 
 EXPERIMENT_OUTPUTS_BASE_DIR = (
-    "experiment_outputs"
+    "outputs/experiment_outputs"
 )
 
 FULL_EXPERIMENT_OUTPUTS_BASE_DIR = (
-    "full_experiment_outputs"
+    "outputs/full_experiment_outputs"
 )
 
 FINAL_TABLE_CSV_FILENAME = (

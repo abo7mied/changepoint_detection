@@ -93,7 +93,7 @@ VALIDATION_FRACTION = 0.3
 MIN_TRAIN_EXAMPLES = 5
 MIN_VALIDATION_EXAMPLES = 5
 
-OUTPUTS_BASE_DIR = "model_hyperparameter_sweep"
+OUTPUTS_BASE_DIR = "outputs/model_hyperparameter_sweep"
 RAW_RESULTS_FILENAME = "raw_results.csv"
 RANKING_FILENAME = "ranking.csv"
 SCORE_PLOT_FILENAME = "score_curves.png"

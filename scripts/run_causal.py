@@ -203,11 +203,11 @@ SAVE_PREDICTIVE_MECHANISM_HEATMAPS = (
 ANALYSIS_DOMAIN_NAME = "time"
 
 EXPERIMENT_OUTPUTS_BASE_DIR = (
-    "experiment_outputs"
+    "outputs/experiment_outputs"
 )
 
 FULL_EXPERIMENT_OUTPUTS_BASE_DIR = (
-    "full_experiment_outputs"
+    "outputs/full_experiment_outputs"
 )
 
 FINAL_TABLE_CSV_FILENAME = (

@@ -119,11 +119,11 @@ ANALYSIS_DOMAIN_NAME = "time"
 EXPERIMENT_DESIGN_MODE = "seizure_sections"
 
 EXPERIMENT_OUTPUTS_BASE_DIR = (
-    "seizure_eeg_experiment_outputs"
+    "outputs/seizure_eeg_experiment_outputs"
 )
 
 FULL_EXPERIMENT_OUTPUTS_BASE_DIR = (
-    "seizure_eeg_full_experiment_outputs"
+    "outputs/seizure_eeg_full_experiment_outputs"
 )
 
 FINAL_TABLE_CSV_FILENAME = (
