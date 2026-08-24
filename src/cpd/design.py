@@ -20,6 +20,8 @@ class CompetitorConfig:
     epsilon: float
     model_lag_order: int
     window_size: int
+    reverse_right_to_left: Optional[bool] = None
+    split_train_validation: Optional[bool] = None
 
     @property
     def forward_only(self):
@@ -53,6 +55,16 @@ class CompetitorConfig:
             f"{base} | "
             f"L={self.model_lag_order} | "
             f"h={self.window_size}"
+            + (
+                f" | reverse={self.reverse_right_to_left}"
+                if self.reverse_right_to_left is not None
+                else ""
+            )
+            + (
+                f" | split={self.split_train_validation}"
+                if self.split_train_validation is not None
+                else ""
+            )
         )
 
 

@@ -61,6 +61,7 @@ class CausalExperimentParameters:
     base_seed: int
 
     quadratic_coefficient: float = 3.0
+    default_setup_only: bool = False
 
 
 
@@ -210,7 +211,11 @@ def iter_dataset_configs(
 
     setup_specs = []
 
-    if mode == "cartesian":
+    if parameters.default_setup_only:
+        setup_specs = [
+            ("default", "all_defaults", defaults.copy())
+        ]
+    elif mode == "cartesian":
         choices = itertools.product(
             _normalize_grid_choices(
                 parameters.dataset_lengths,

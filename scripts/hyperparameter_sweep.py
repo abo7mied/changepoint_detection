@@ -56,6 +56,15 @@ RNN_EPOCH_COUNTS = [50]
 MODEL_CHOICE = "MLPModel"
 EXPERIMENT_KIND = "causal"
 SWEEP_MODE = "plot"
+DEFAULT_ONLY = False
+
+SWEEP_CROSS_REGIME_VARIANTS = False
+CROSS_REGIME_SCORE_DIRECTIONS = [
+    "forward_backward",
+    "forward_only",
+]
+CROSS_REGIME_SPLIT_OPTIONS = [False, True]
+CROSS_REGIME_REVERSAL_OPTIONS = [True, False]
 
 NUM_REPLICATES = 20
 BASE_SEED = 42
@@ -146,6 +155,15 @@ def get_sweep_grid():
             f"Got {MODEL_CHOICE!r}."
         )
 
+    if DEFAULT_ONLY:
+        parameters = get_base_model_parameters()[MODEL_CHOICE]
+        grid["sizes"] = [
+            parameters[grid["size_name"]]
+        ]
+        grid["learning_rates"] = [parameters["lr"]]
+        grid["batch_sizes"] = [parameters["batch_size"]]
+        grid["epoch_counts"] = [parameters["epochs"]]
+
     if SWEEP_MODE == "plot":
         if not grid["batch_sizes"]:
             raise ValueError(
@@ -154,6 +172,9 @@ def get_sweep_grid():
 
         grid["batch_sizes"] = [
             grid["batch_sizes"][0]
+        ]
+        grid["epoch_counts"] = [
+            grid["epoch_counts"][0]
         ]
 
     return grid
@@ -350,14 +371,38 @@ def make_model_parameters(
     return base_parameters
 
 
-def make_competitor():
+def configured_cross_regime_variants():
+    """Return the active cross-regime method variants."""
+    if SWEEP_CROSS_REGIME_VARIANTS:
+        return product(
+            CROSS_REGIME_SCORE_DIRECTIONS,
+            CROSS_REGIME_SPLIT_OPTIONS,
+            CROSS_REGIME_REVERSAL_OPTIONS,
+        )
+
+    return [
+        (
+            SCORE_DIRECTION,
+            None,
+            None,
+        )
+    ]
+
+
+def make_competitor(
+    score_direction=SCORE_DIRECTION,
+    split_train_validation=SPLIT_TRAIN_VALIDATION,
+    reverse_right_to_left=REVERSE_RIGHT_TO_LEFT,
+):
     """Construct the active model competitor."""
     return CompetitorConfig(
         model_choice=MODEL_CHOICE,
-        score_direction=SCORE_DIRECTION,
+        score_direction=score_direction,
         epsilon=EPSILON,
         model_lag_order=MODEL_LAG_ORDER,
         window_size=WINDOW_SIZE,
+        split_train_validation=split_train_validation,
+        reverse_right_to_left=reverse_right_to_left,
     )
 
 
@@ -380,6 +425,9 @@ def run_one_configuration(
     batch_size,
     epochs,
     model_seed,
+    score_direction=SCORE_DIRECTION,
+    split_train_validation=SPLIT_TRAIN_VALIDATION,
+    reverse_right_to_left=REVERSE_RIGHT_TO_LEFT,
 ):
     """Run one hyperparameter configuration."""
     set_model_seed(model_seed)
@@ -397,7 +445,11 @@ def run_one_configuration(
             window_size=WINDOW_SIZE,
             L=MODEL_LAG_ORDER,
             candidates=candidates,
-            competitor=make_competitor(),
+            competitor=make_competitor(
+                score_direction=score_direction,
+                split_train_validation=split_train_validation,
+                reverse_right_to_left=reverse_right_to_left,
+            ),
             device=DEVICE,
             model_parameters=model_parameters,
             use_epsilon=USE_EPSILON,
@@ -451,6 +503,9 @@ def build_ranking(raw_results):
         "learning_rate",
         "batch_size",
         "epochs",
+        "score_direction",
+        "split_train_validation",
+        "reverse_right_to_left",
     ]
 
     ranking = (
@@ -545,6 +600,9 @@ def run_sweep():
             grid["epoch_counts"],
         )
     )
+    method_variants = list(
+        configured_cross_regime_variants()
+    )
 
     candidates = make_candidates(
         T=T,
@@ -567,8 +625,11 @@ def run_sweep():
             dataset_config
         )
 
-        for combination_index, combination in enumerate(
-            combinations,
+        for combination_index, (
+            combination,
+            method_variant,
+        ) in enumerate(
+            product(combinations, method_variants),
             start=1,
         ):
             (
@@ -577,6 +638,11 @@ def run_sweep():
                 batch_size,
                 epochs,
             ) = combination
+            (
+                score_direction,
+                split_train_validation,
+                reverse_right_to_left,
+            ) = method_variant
 
             if PRINT_EACH_RUN:
                 print(
@@ -590,6 +656,9 @@ def run_sweep():
                     f"lr={learning_rate:g}, "
                     f"batch_size={batch_size}, "
                     f"epochs={epochs}"
+                    f", score={score_direction}, "
+                    f"split={split_train_validation}, "
+                    f"reverse={reverse_right_to_left}"
                 )
 
             try:
@@ -604,6 +673,13 @@ def run_sweep():
                     batch_size=batch_size,
                     epochs=epochs,
                     model_seed=seed,
+                    score_direction=score_direction,
+                    split_train_validation=(
+                        split_train_validation
+                    ),
+                    reverse_right_to_left=(
+                        reverse_right_to_left
+                    ),
                 )
 
                 status = "OK"
@@ -624,6 +700,9 @@ def run_sweep():
                             learning_rate,
                             batch_size,
                             epochs,
+                            score_direction,
+                            split_train_validation,
+                            reverse_right_to_left,
                         )
                     ] = result
 
@@ -658,6 +737,13 @@ def run_sweep():
                         batch_size
                     ),
                     "epochs": int(epochs),
+                    "score_direction": score_direction,
+                    "split_train_validation": (
+                        split_train_validation
+                    ),
+                    "reverse_right_to_left": (
+                        reverse_right_to_left
+                    ),
                     "tau_star": int(
                         dataset_config.tau_star
                     ),
@@ -697,8 +783,14 @@ def plot_score_curves(
             grid["epoch_counts"],
         )
     )
+    method_variants = list(
+        configured_cross_regime_variants()
+    )
+    plotted_combinations = list(
+        product(combinations, method_variants)
+    )
 
-    num_plots = len(combinations)
+    num_plots = len(plotted_combinations)
     num_columns = min(4, num_plots)
     num_rows = int(
         np.ceil(
@@ -723,9 +815,9 @@ def plot_score_curves(
         squeeze=False,
     )
 
-    for ax, combination in zip(
+    for ax, (combination, method_variant) in zip(
         axes.ravel(),
-        combinations,
+        plotted_combinations,
     ):
         (
             size,
@@ -733,6 +825,11 @@ def plot_score_curves(
             batch_size,
             epochs,
         ) = combination
+        (
+            score_direction,
+            split_train_validation,
+            reverse_right_to_left,
+        ) = method_variant
 
         result = score_results.get(
             (
@@ -740,6 +837,9 @@ def plot_score_curves(
                 learning_rate,
                 batch_size,
                 epochs,
+                score_direction,
+                split_train_validation,
+                reverse_right_to_left,
             )
         )
 
@@ -747,7 +847,10 @@ def plot_score_curves(
             f"{grid['size_name']}={size}, "
             f"lr={learning_rate:g}\n"
             f"batch={batch_size}, "
-            f"epochs={epochs}"
+            f"epochs={epochs}\n"
+            f"score={score_direction}, "
+            f"split={split_train_validation}, "
+            f"reverse={reverse_right_to_left}"
         )
 
         if result is None:
@@ -855,6 +958,9 @@ def print_ranked_results(ranking):
         "learning_rate",
         "batch_size",
         "epochs",
+        "score_direction",
+        "split_train_validation",
+        "reverse_right_to_left",
         "num_successful",
         "num_failed",
         "mean_localization_error",

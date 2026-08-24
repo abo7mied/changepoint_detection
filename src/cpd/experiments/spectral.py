@@ -82,6 +82,7 @@ class SpectralExperimentParameters:
     beta: float
     var_target_spectral_radius: float
     base_seed: int
+    default_setup_only: bool = False
 
 
 @dataclass(frozen=True)
@@ -611,7 +612,11 @@ def build_spectral_coefficient_experiments(
 
     mode = str(parameters.experiment_design_mode).strip().lower()
 
-    if mode == "cartesian":
+    if parameters.default_setup_only:
+        specs = [
+            ("default", "all_defaults", defaults.copy())
+        ]
+    elif mode == "cartesian":
         specs = [
             (
                 "cartesian",

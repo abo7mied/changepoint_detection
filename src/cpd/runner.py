@@ -272,6 +272,14 @@ def evaluate_one_competitor(
             cross_regime_kwargs = dict(
                 runner_config.cross_regime_kwargs
             )
+            if competitor.reverse_right_to_left is not None:
+                cross_regime_kwargs[
+                    "reverse_right_to_left"
+                ] = competitor.reverse_right_to_left
+            if competitor.split_train_validation is not None:
+                cross_regime_kwargs[
+                    "split_train_validation"
+                ] = competitor.split_train_validation
             cross_regime_kwargs.setdefault(
                 "verbose",
                 runner_config.verbose_candidate_progress,

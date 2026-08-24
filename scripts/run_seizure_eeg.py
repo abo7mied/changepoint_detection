@@ -56,6 +56,13 @@ SCORE_DIRECTIONS = [
     "forward_backward",
 ]
 
+CROSS_REGIME_SCORE_DIRECTIONS = [
+    "forward_backward",
+    "forward_only",
+]
+CROSS_REGIME_SPLIT_OPTIONS = [False, True]
+CROSS_REGIME_REVERSAL_OPTIONS = [True, False]
+
 EPSILON_VALUES = [
     1e-10,
 ]
@@ -94,6 +101,7 @@ FULL_EXPERIMENT_MODE = "observed_datasets"
 # --- 3: Toggles ---
 
 RUN_FULL_EXPERIMENT = True
+SWEEP_CROSS_REGIME_VARIANTS = False
 
 VERBOSE_CANDIDATE_PROGRESS = True
 PRINT_SCORES = False
@@ -266,6 +274,21 @@ def configured_dataset_configs():
 def configured_competitors(
     dataset_config,
 ):
+    if SWEEP_CROSS_REGIME_VARIANTS:
+        cross_regime_variants = product(
+            CROSS_REGIME_SCORE_DIRECTIONS,
+            CROSS_REGIME_SPLIT_OPTIONS,
+            CROSS_REGIME_REVERSAL_OPTIONS,
+        )
+    else:
+        cross_regime_variants = [
+            (
+                SCORE_DIRECTIONS[0],
+                None,
+                None,
+            )
+        ]
+
     for model_choice in MODEL_CHOICES:
         if model_choice == "KMOVARScore":
             for h_choice in KMO_H_CHOICES:
@@ -285,21 +308,29 @@ def configured_competitors(
 
             continue
 
-        for score_direction, epsilon in product(
-            SCORE_DIRECTIONS,
-            EPSILON_VALUES,
-        ):
-            yield CompetitorConfig(
-                model_choice=model_choice,
-                score_direction=score_direction,
-                epsilon=epsilon,
-                model_lag_order=(
-                    dataset_config.model_lag_order
-                ),
-                window_size=(
-                    dataset_config.window_size
-                ),
-            )
+        for (
+            score_direction,
+            split_train_validation,
+            reverse_right_to_left,
+        ) in cross_regime_variants:
+            for epsilon in EPSILON_VALUES:
+                yield CompetitorConfig(
+                    model_choice=model_choice,
+                    score_direction=score_direction,
+                    epsilon=epsilon,
+                    model_lag_order=(
+                        dataset_config.model_lag_order
+                    ),
+                    window_size=(
+                        dataset_config.window_size
+                    ),
+                    split_train_validation=(
+                        split_train_validation
+                    ),
+                    reverse_right_to_left=(
+                        reverse_right_to_left
+                    ),
+                )
 
 
 def configured_dataset_generator(
