@@ -1,6 +1,7 @@
 """Forecasting and reconstruction models."""
 
 from abc import ABC, abstractmethod
+from copy import deepcopy
 
 import numpy as np
 
@@ -47,6 +48,86 @@ def construct_supervised_prediction_pairs(X, L):
     return exs, labels
 
 
+def _validate_fit_policy(model):
+    if model.fit_mode not in {"fixed", "adaptive"}:
+        raise ValueError(
+            "fit_mode must be 'fixed' or 'adaptive'. "
+            f"Got {model.fit_mode!r}."
+        )
+    if model.patience <= 0:
+        raise ValueError("patience must be positive.")
+    if model.min_delta < 0:
+        raise ValueError("min_delta must be non-negative.")
+    if model.max_epochs <= 0:
+        raise ValueError("max_epochs must be positive.")
+
+
+def _train_with_fit_policy(
+    wrapper,
+    train_X,
+    train_Y,
+    validation_data,
+    prepare_validation,
+):
+    """Train for a fixed duration or to validation-loss convergence."""
+    train_kwargs = {
+        "X": train_X,
+        "Y": train_Y,
+        "lr": wrapper.lr,
+        "batch_size": wrapper.batch_size,
+        "loss_type": wrapper.loss_type,
+        "print_loss": wrapper.print_loss,
+    }
+
+    if wrapper.fit_mode == "fixed":
+        wrapper.model.train(
+            epochs=wrapper.epochs,
+            **train_kwargs,
+        )
+        wrapper.epochs_trained = wrapper.epochs
+        return
+
+    if validation_data is None:
+        raise ValueError(
+            "adaptive fit_mode requires validation_data."
+        )
+
+    validation_X, validation_Y = prepare_validation(
+        validation_data
+    )
+    best_parameters = None
+    best_loss = np.inf
+    epochs_without_improvement = 0
+
+    for epoch in range(1, wrapper.max_epochs + 1):
+        wrapper.model.train(epochs=1, **train_kwargs)
+        validation_loss = wrapper.validation_loss(
+            validation_X,
+            validation_Y,
+        )
+
+        if validation_loss < best_loss - wrapper.min_delta:
+            best_loss = float(validation_loss)
+            best_parameters = deepcopy(
+                wrapper.model.parameters
+            )
+            epochs_without_improvement = 0
+        else:
+            epochs_without_improvement += 1
+
+        if epochs_without_improvement >= wrapper.patience:
+            break
+
+    if best_parameters is None:
+        raise RuntimeError(
+            "Adaptive fitting produced no finite validation loss."
+        )
+
+    wrapper.model.parameters = best_parameters
+    wrapper.epochs_trained = epoch
+    wrapper.best_validation_loss = best_loss
+
+
 class ForecastModel(ABC):
     """Common interface for competitor models."""
 
@@ -54,7 +135,7 @@ class ForecastModel(ABC):
         self.L = L
 
     @abstractmethod
-    def fit(self, X, Y=None):
+    def fit(self, X, Y=None, validation_data=None):
         pass
 
     @abstractmethod
@@ -69,7 +150,7 @@ class ForecastModel(ABC):
 class VARModel(ForecastModel):
     """Linear least-squares VAR model."""
 
-    def fit(self, X, Y):
+    def fit(self, X, Y, validation_data=None):
         if Y is None:
             raise ValueError("VARModel.fit requires labels Y.")
 
@@ -112,6 +193,10 @@ class MLPModel(ForecastModel):
         batch_size=8,
         loss_type="mse",
         print_loss=False,
+        fit_mode="fixed",
+        patience=20,
+        min_delta=1e-4,
+        max_epochs=None,
     ):
         super().__init__(L)
 
@@ -122,8 +207,16 @@ class MLPModel(ForecastModel):
         self.batch_size = batch_size
         self.loss_type = loss_type
         self.print_loss = print_loss
+        self.fit_mode = fit_mode
+        self.patience = patience
+        self.min_delta = min_delta
+        self.max_epochs = epochs if max_epochs is None else max_epochs
+        self.epochs_trained = None
+        self.best_validation_loss = None
 
-    def fit(self, X, Y):
+        _validate_fit_policy(self)
+
+    def fit(self, X, Y, validation_data=None):
         if Y is None:
             raise ValueError("MLPModel.fit requires labels Y.")
 
@@ -149,14 +242,15 @@ class MLPModel(ForecastModel):
 
         X = X.reshape(len(X), -1)
 
-        self.model.train(
-            X=X.T,
-            Y=Y.T,
-            lr=self.lr,
-            epochs=self.epochs,
-            batch_size=self.batch_size,
-            loss_type=self.loss_type,
-            print_loss=self.print_loss,
+        _train_with_fit_policy(
+            wrapper=self,
+            train_X=X.T,
+            train_Y=Y.T,
+            validation_data=validation_data,
+            prepare_validation=lambda values: (
+                np.asarray(values[0], dtype=float),
+                np.asarray(values[1], dtype=float),
+            ),
         )
 
     def predict(self, X):
@@ -166,6 +260,15 @@ class MLPModel(ForecastModel):
         return np.asarray(
             self.model.predict(X=X.T)
         ).T
+
+    def validation_loss(self, X, Y):
+        X = np.asarray(X, dtype=float).reshape(len(X), -1)
+        Y = np.asarray(Y, dtype=float)
+        predictions, _ = self.model.forward_propagation(X.T)
+        if self.device == "gpu":
+            predictions = self.model.xp.asnumpy(predictions)
+        predictions = np.asarray(predictions).T
+        return float(np.mean((predictions - Y) ** 2))
 
     def test(self, X, Y):
         if Y is None:
@@ -189,6 +292,10 @@ class RNNModel(ForecastModel):
         batch_size=16,
         loss_type="mse",
         print_loss=False,
+        fit_mode="fixed",
+        patience=20,
+        min_delta=1e-4,
+        max_epochs=None,
     ):
         super().__init__(L)
 
@@ -198,8 +305,16 @@ class RNNModel(ForecastModel):
         self.batch_size = batch_size
         self.loss_type = loss_type
         self.print_loss = print_loss
+        self.fit_mode = fit_mode
+        self.patience = patience
+        self.min_delta = min_delta
+        self.max_epochs = epochs if max_epochs is None else max_epochs
+        self.epochs_trained = None
+        self.best_validation_loss = None
 
-    def fit(self, X, Y):
+        _validate_fit_policy(self)
+
+    def fit(self, X, Y, validation_data=None):
         if Y is None:
             raise ValueError("RNNModel.fit requires labels Y.")
 
@@ -221,14 +336,15 @@ class RNNModel(ForecastModel):
             first_output_step=self.L - 1,
         )
 
-        self.model.train(
-            X=X,
-            Y=Y,
-            lr=self.lr,
-            epochs=self.epochs,
-            batch_size=self.batch_size,
-            loss_type=self.loss_type,
-            print_loss=self.print_loss,
+        _train_with_fit_policy(
+            wrapper=self,
+            train_X=X,
+            train_Y=Y,
+            validation_data=validation_data,
+            prepare_validation=lambda values: (
+                np.asarray(values[0], dtype=float),
+                np.asarray(values[1], dtype=float),
+            ),
         )
 
     def predict(self, X):
@@ -244,6 +360,17 @@ class RNNModel(ForecastModel):
             preds = preds[0, :, :]
 
         return preds
+
+    def validation_loss(self, X, Y):
+        X = np.asarray(X, dtype=float)
+        Y = np.asarray(Y, dtype=float)
+        predictions, _ = self.model.forward_propagation(X)
+        predictions = np.asarray(predictions)
+        if predictions.ndim == 3 and predictions.shape[1] == 1:
+            predictions = predictions[:, 0, :]
+        if predictions.ndim == 3 and predictions.shape[0] == 1:
+            predictions = predictions[0, :, :]
+        return float(np.mean((predictions - Y) ** 2))
 
     def test(self, X, Y):
         if Y is None:
@@ -268,6 +395,10 @@ class AEModel(ForecastModel):
         batch_size=16,
         loss_type="mse",
         print_loss=False,
+        fit_mode="fixed",
+        patience=20,
+        min_delta=1e-4,
+        max_epochs=None,
     ):
         super().__init__(L)
 
@@ -278,8 +409,16 @@ class AEModel(ForecastModel):
         self.batch_size = batch_size
         self.loss_type = loss_type
         self.print_loss = print_loss
+        self.fit_mode = fit_mode
+        self.patience = patience
+        self.min_delta = min_delta
+        self.max_epochs = epochs if max_epochs is None else max_epochs
+        self.epochs_trained = None
+        self.best_validation_loss = None
 
-    def fit(self, X, Y=None):
+        _validate_fit_policy(self)
+
+    def fit(self, X, Y=None, validation_data=None):
         if MLP is None:
             raise ImportError(
                 "AEModel requires "
@@ -301,14 +440,15 @@ class AEModel(ForecastModel):
 
         X = X.reshape(len(X), -1)
 
-        self.model.train(
-            X=X.T,
-            Y=X.T,
-            lr=self.lr,
-            epochs=self.epochs,
-            batch_size=self.batch_size,
-            loss_type=self.loss_type,
-            print_loss=self.print_loss,
+        _train_with_fit_policy(
+            wrapper=self,
+            train_X=X.T,
+            train_Y=X.T,
+            validation_data=validation_data,
+            prepare_validation=lambda values: (
+                np.asarray(values[0], dtype=float),
+                None,
+            ),
         )
 
     def predict(self, X):
@@ -318,6 +458,14 @@ class AEModel(ForecastModel):
         return np.asarray(
             self.model.predict(X=X.T)
         ).T
+
+    def validation_loss(self, X, Y=None):
+        X = np.asarray(X, dtype=float).reshape(len(X), -1)
+        predictions, _ = self.model.forward_propagation(X.T)
+        if self.device == "gpu":
+            predictions = self.model.xp.asnumpy(predictions)
+        predictions = np.asarray(predictions).T
+        return float(np.mean((predictions - X) ** 2))
 
     def test(self, X, Y=None):
         X = np.asarray(X, dtype=float)

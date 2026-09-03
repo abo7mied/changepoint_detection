@@ -203,3 +203,28 @@ def test_cross_regime_selects_current_model_parameters(
         assert call["model_parameters"] == (
             model_parameters["MLPModel"]
         )
+
+
+def test_adaptive_cross_regime_requires_validation_split():
+    competitor = SimpleNamespace(
+        model_choice="MLPModel",
+        score_direction="forward_backward",
+        epsilon=1e-10,
+        label="MLPModel",
+    )
+
+    with np.testing.assert_raises_regex(
+        ValueError,
+        "split_train_validation=True",
+    ):
+        cross_regime.estimate_causal_cpd_log_normalized_cross_regime(
+            series=np.arange(40, dtype=float).reshape(20, 2),
+            window_size=5,
+            L=1,
+            candidates=[10],
+            competitor=competitor,
+            split_train_validation=False,
+            model_parameters={
+                "MLPModel": {"fit_mode": "adaptive"},
+            },
+        )

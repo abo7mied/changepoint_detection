@@ -240,6 +240,24 @@ def test_mlp_model_requires_labels(monkeypatch):
         model.fit(X, None)
 
 
+def test_adaptive_mlp_requires_validation_data(monkeypatch):
+    monkeypatch.setattr(models, "MLP", FakeMLP)
+    model = MLPModel(L=2, fit_mode="adaptive")
+    X = np.zeros((4, 2, 1))
+    Y = np.zeros((4, 1))
+
+    with pytest.raises(
+        ValueError,
+        match="requires validation_data",
+    ):
+        model.fit(X, Y)
+
+
+def test_invalid_fit_mode_is_rejected():
+    with pytest.raises(ValueError, match="fit_mode"):
+        MLPModel(L=2, fit_mode="unknown")
+
+
 def test_autoencoder_matches_original_wrapper(monkeypatch):
     FakeMLP.instances.clear()
     monkeypatch.setattr(models, "MLP", FakeMLP)

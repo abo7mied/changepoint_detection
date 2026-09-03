@@ -83,12 +83,21 @@ AE_LEARNING_RATE = 0.1
 AE_EPOCHS = 200
 AE_BATCH_SIZE = 16
 
+# "fixed" uses the configured epoch counts. "adaptive" trains
+# each candidate side until validation loss stops improving.
+FIT_MODE = "fixed"
+ADAPTIVE_PATIENCE = 20
+ADAPTIVE_MIN_DELTA = 1e-4
+ADAPTIVE_MAX_EPOCHS = 2000
+
 VALIDATION_FRACTION = 0.3
 MIN_TRAIN_EXAMPLES = 5
 MIN_VALIDATION_EXAMPLES = 5
 
 USE_EPSILON = True
 REVERSE_RIGHT_TO_LEFT = False
+# This experiment already used a held-out chronological split in
+# fixed mode; adaptive mode uses the same split for early stopping.
 SPLIT_TRAIN_VALIDATION = True
 
 KMO_INCLUDE_INTERCEPT = False
@@ -157,6 +166,10 @@ MODEL_PARAMETERS = {
         "epochs": MLP_EPOCHS,
         "batch_size": MLP_BATCH_SIZE,
         "loss_type": "mse",
+        "fit_mode": FIT_MODE,
+        "patience": ADAPTIVE_PATIENCE,
+        "min_delta": ADAPTIVE_MIN_DELTA,
+        "max_epochs": ADAPTIVE_MAX_EPOCHS,
     },
     "AEModel": {
         "bottleneck_size": AE_BOTTLENECK_SIZE,
@@ -164,6 +177,10 @@ MODEL_PARAMETERS = {
         "epochs": AE_EPOCHS,
         "batch_size": AE_BATCH_SIZE,
         "loss_type": "mse",
+        "fit_mode": FIT_MODE,
+        "patience": ADAPTIVE_PATIENCE,
+        "min_delta": ADAPTIVE_MIN_DELTA,
+        "max_epochs": ADAPTIVE_MAX_EPOCHS,
     },
 }
 
@@ -276,9 +293,14 @@ def configured_competitors(
     dataset_config,
 ):
     if SWEEP_CROSS_REGIME_VARIANTS:
+        split_options = (
+            [True]
+            if FIT_MODE == "adaptive"
+            else CROSS_REGIME_SPLIT_OPTIONS
+        )
         cross_regime_variants = product(
             CROSS_REGIME_SCORE_DIRECTIONS,
-            CROSS_REGIME_SPLIT_OPTIONS,
+            split_options,
             CROSS_REGIME_REVERSAL_OPTIONS,
         )
     else:

@@ -95,6 +95,27 @@ def compute_log_normalized_score(
     )
 
 
+def _fit_local_model(
+    model,
+    train_examples,
+    train_labels,
+    validation_examples,
+    validation_labels,
+):
+    """Fit one side, supplying validation data only in adaptive mode."""
+    if getattr(model, "fit_mode", "fixed") == "adaptive":
+        model.fit(
+            train_examples,
+            train_labels,
+            validation_data=(
+                validation_examples,
+                validation_labels,
+            ),
+        )
+    else:
+        model.fit(train_examples, train_labels)
+
+
 def estimate_causal_cpd_log_normalized_cross_regime(
     series,
     window_size,
@@ -124,6 +145,15 @@ def estimate_causal_cpd_log_normalized_cross_regime(
                 competitor.model_choice,
                 {},
             )
+        )
+    fit_mode = selected_model_parameters.get(
+        "fit_mode",
+        "fixed",
+    )
+    if fit_mode == "adaptive" and not split_train_validation:
+        raise ValueError(
+            "adaptive fit_mode requires "
+            "split_train_validation=True."
         )
     if h <= L:
         raise ValueError(
@@ -213,9 +243,12 @@ def estimate_causal_cpd_log_normalized_cross_regime(
             ),
         )
 
-        f_left.fit(
+        _fit_local_model(
+            f_left,
             left_train_examples,
             left_train_labels,
+            left_test_examples,
+            left_test_labels,
         )
 
         _, left_on_right_error = f_left.test(
@@ -295,9 +328,12 @@ def estimate_causal_cpd_log_normalized_cross_regime(
             ),
         )
 
-        f_right.fit(
+        _fit_local_model(
+            f_right,
             right_train_examples,
             right_train_labels,
+            right_test_examples,
+            right_test_labels,
         )
 
         _, right_on_left_error = f_right.test(
