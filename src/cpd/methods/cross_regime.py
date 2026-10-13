@@ -16,8 +16,14 @@ def train_validation_split(
     validation_fraction=0.3,
     min_train_size=5,
     min_validation_size=5,
+    *,
+    train_from_end=False,
 ):
-    """Chronologically split prediction pairs into training and validation sets."""
+    """Split ordered pairs, optionally training on the end nearest the split.
+
+    Pairs are built before splitting, so lagged inputs may overlap the
+    training/validation boundary. This is not a purged raw-block split.
+    """
     n = len(examples)
 
     if not 0 < validation_fraction < 1:
@@ -42,6 +48,14 @@ def train_validation_split(
         raise ValueError(
             f"Training split must contain at least "
             f"{min_train_size} pairs. Got {train_size}."
+        )
+
+    if train_from_end:
+        return (
+            examples[validation_size:],
+            labels[validation_size:],
+            examples[:validation_size],
+            labels[:validation_size],
         )
 
     return (
@@ -132,8 +146,15 @@ def estimate_causal_cpd_log_normalized_cross_regime(
     min_train_size=5,
     min_validation_size=5,
     verbose=False,
+    split_policy="chronological",
 ):
     """Estimate the changepoint using cross-regime transfer."""
+    if split_policy not in {"chronological", "inner_train"}:
+        raise ValueError(
+            "split_policy must be 'chronological' or 'inner_train'. "
+            f"Got {split_policy!r}."
+        )
+    inner_train = split_policy == "inner_train"
     X = np.asarray(series, dtype=float)
     h = int(window_size)
 
@@ -211,6 +232,7 @@ def estimate_causal_cpd_log_normalized_cross_regime(
                 validation_fraction,
                 min_train_size,
                 min_validation_size,
+                train_from_end=inner_train,
             )
 
             (
@@ -224,6 +246,7 @@ def estimate_causal_cpd_log_normalized_cross_regime(
                 validation_fraction,
                 min_train_size,
                 min_validation_size,
+                train_from_end=False,
             )
 
         else:
@@ -296,6 +319,9 @@ def estimate_causal_cpd_log_normalized_cross_regime(
                 validation_fraction,
                 min_train_size,
                 min_validation_size,
+                train_from_end=(
+                    inner_train and reverse_right_to_left
+                ),
             )
 
             (
@@ -309,6 +335,9 @@ def estimate_causal_cpd_log_normalized_cross_regime(
                 validation_fraction,
                 min_train_size,
                 min_validation_size,
+                train_from_end=(
+                    inner_train and not reverse_right_to_left
+                ),
             )
 
         else:

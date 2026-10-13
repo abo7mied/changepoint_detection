@@ -13,6 +13,7 @@ import run_spectral as spectral_setup
 
 from cpd.design import (
     CompetitorConfig,
+    expand_cross_regime_variants,
     make_candidates,
 )
 from cpd.experiments.causal import (
@@ -65,6 +66,8 @@ CROSS_REGIME_SCORE_DIRECTIONS = [
     "forward_only",
 ]
 CROSS_REGIME_SPLIT_OPTIONS = [False, True]
+# Add "inner_train" to compare inner training / outer validation.
+CROSS_REGIME_SPLIT_POLICY_OPTIONS = ["chronological"]
 CROSS_REGIME_REVERSAL_OPTIONS = [True, False]
 
 NUM_REPLICATES = 20
@@ -105,6 +108,8 @@ PLOT_DPI = 180
 
 USE_EPSILON = True
 REVERSE_RIGHT_TO_LEFT = True
+# Used when SWEEP_CROSS_REGIME_VARIANTS is False.
+SPLIT_POLICY = "chronological"
 SPLIT_TRAIN_VALIDATION = True
 
 PAIR_MODEL_INITIALIZATION = True
@@ -382,8 +387,22 @@ def configured_cross_regime_variants():
         )
     else:
         cross_regime_variants = [
-            (SCORE_DIRECTION, None, None)
+            (
+                SCORE_DIRECTION,
+                SPLIT_TRAIN_VALIDATION,
+                REVERSE_RIGHT_TO_LEFT,
+            )
         ]
+
+    cross_regime_variants = expand_cross_regime_variants(
+        cross_regime_variants,
+        (
+            CROSS_REGIME_SPLIT_POLICY_OPTIONS
+            if SWEEP_CROSS_REGIME_VARIANTS
+            else [SPLIT_POLICY]
+        ),
+        default_split=SPLIT_TRAIN_VALIDATION,
+    )
 
     normalization_options = (
         [True, False]
@@ -401,7 +420,8 @@ def make_competitor(
     score_direction=SCORE_DIRECTION,
     split_train_validation=SPLIT_TRAIN_VALIDATION,
     reverse_right_to_left=REVERSE_RIGHT_TO_LEFT,
-        normalize_by_within_regime_error=None,
+    normalize_by_within_regime_error=None,
+    split_policy=SPLIT_POLICY,
 ):
     """Construct the active model competitor."""
     return CompetitorConfig(
@@ -411,6 +431,7 @@ def make_competitor(
         model_lag_order=MODEL_LAG_ORDER,
         window_size=WINDOW_SIZE,
         split_train_validation=split_train_validation,
+        split_policy=split_policy,
         reverse_right_to_left=reverse_right_to_left,
             normalize_by_within_regime_error=(
                 normalize_by_within_regime_error
@@ -440,7 +461,8 @@ def run_one_configuration(
     score_direction=SCORE_DIRECTION,
     split_train_validation=SPLIT_TRAIN_VALIDATION,
     reverse_right_to_left=REVERSE_RIGHT_TO_LEFT,
-        normalize_by_within_regime_error=None,
+    normalize_by_within_regime_error=None,
+    split_policy=SPLIT_POLICY,
 ):
     """Run one hyperparameter configuration."""
     set_model_seed(model_seed)
@@ -461,6 +483,7 @@ def run_one_configuration(
             competitor=make_competitor(
                 score_direction=score_direction,
                 split_train_validation=split_train_validation,
+                split_policy=split_policy,
                 reverse_right_to_left=reverse_right_to_left,
                     normalize_by_within_regime_error=(
                         normalize_by_within_regime_error
@@ -471,6 +494,7 @@ def run_one_configuration(
             use_epsilon=USE_EPSILON,
             reverse_right_to_left=reverse_right_to_left,
             split_train_validation=split_train_validation,
+            split_policy=split_policy,
             validation_fraction=(
                 VALIDATION_FRACTION
             ),
@@ -517,6 +541,7 @@ def build_ranking(raw_results):
         "epochs",
         "score_direction",
         "split_train_validation",
+        "split_policy",
         "reverse_right_to_left",
         "normalize_by_within_regime_error",
     ]
@@ -655,6 +680,7 @@ def run_sweep():
                 score_direction,
                 split_train_validation,
                 reverse_right_to_left,
+                split_policy,
             ), normalize_by_within_regime_error = method_variant
 
             if PRINT_EACH_RUN:
@@ -671,6 +697,7 @@ def run_sweep():
                     f"epochs={epochs}"
                     f", score={score_direction}, "
                     f"split={split_train_validation}, "
+                    f"split_policy={split_policy}, "
                     f"reverse={reverse_right_to_left}"
                 )
 
@@ -687,6 +714,7 @@ def run_sweep():
                     epochs=epochs,
                     model_seed=seed,
                     score_direction=score_direction,
+                    split_policy=split_policy,
                     split_train_validation=(
                         split_train_validation
                     ),
@@ -720,6 +748,7 @@ def run_sweep():
                             split_train_validation,
                             reverse_right_to_left,
                             normalize_by_within_regime_error,
+                            split_policy,
                         )
                     ] = result
 
@@ -755,6 +784,7 @@ def run_sweep():
                     ),
                     "epochs": int(epochs),
                     "score_direction": score_direction,
+                    "split_policy": split_policy,
                     "split_train_validation": (
                         split_train_validation
                     ),
@@ -849,6 +879,7 @@ def plot_score_curves(
             score_direction,
             split_train_validation,
             reverse_right_to_left,
+            split_policy,
         ), normalize_by_within_regime_error = method_variant
 
         result = score_results.get(
@@ -861,6 +892,7 @@ def plot_score_curves(
                 split_train_validation,
                 reverse_right_to_left,
                 normalize_by_within_regime_error,
+                split_policy,
             )
         )
 
@@ -871,6 +903,7 @@ def plot_score_curves(
             f"epochs={epochs}\n"
             f"score={score_direction}, "
             f"split={split_train_validation}, "
+            f"split_policy={split_policy}, "
             f"reverse={reverse_right_to_left}, "
             f"normalize={normalize_by_within_regime_error}"
         )
@@ -982,6 +1015,7 @@ def print_ranked_results(ranking):
         "epochs",
         "score_direction",
         "split_train_validation",
+        "split_policy",
         "reverse_right_to_left",
         "num_successful",
         "num_failed",
@@ -1017,6 +1051,11 @@ def print_best_configuration(ranking):
     size_name = best["size_name"]
 
     print("\nBest configuration:")
+
+    print(
+        "split_policy    = "
+        f"{best['split_policy']}"
+    )
 
     print(
         f"{size_name:<15} = "

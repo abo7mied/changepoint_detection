@@ -23,6 +23,7 @@ class CompetitorConfig:
     reverse_right_to_left: Optional[bool] = None
     split_train_validation: Optional[bool] = None
     normalize_by_within_regime_error: Optional[bool] = None
+    split_policy: Optional[str] = None
 
     @property
     def forward_only(self):
@@ -67,6 +68,12 @@ class CompetitorConfig:
                 else ""
             )
             + (
+                f" | split_policy={self.split_policy}"
+                if self.split_policy is not None
+                and self.split_train_validation is not False
+                else ""
+            )
+            + (
                 f" | normalize={self.normalize_by_within_regime_error}"
                 if self.normalize_by_within_regime_error is not None
                 else ""
@@ -75,6 +82,37 @@ class CompetitorConfig:
 
 
 # Functions
+
+
+def expand_cross_regime_variants(
+    variants,
+    split_policies,
+    default_split,
+):
+    """Materialize method variants, sweeping policies only when splitting."""
+    policies = list(dict.fromkeys(split_policies))
+    if not policies or any(
+        policy not in {"chronological", "inner_train"}
+        for policy in policies
+    ):
+        raise ValueError(
+            "split_policies must contain 'chronological' or 'inner_train'."
+        )
+
+    expanded = []
+    for direction, split, reverse in variants:
+        effective_split = (
+            default_split if split is None else split
+        )
+        active_policies = (
+            policies if effective_split else ["chronological"]
+        )
+        for policy in active_policies:
+            variant = (direction, effective_split, reverse, policy)
+            if variant not in expanded:
+                expanded.append(variant)
+    return expanded
+
 
 def _coerce_positive_integer(value, name):
     """Validate and return a positive integer."""

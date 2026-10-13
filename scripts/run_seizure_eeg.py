@@ -5,7 +5,10 @@ from __future__ import annotations
 from itertools import product
 from pathlib import Path
 
-from cpd.design import CompetitorConfig
+from cpd.design import (
+    CompetitorConfig,
+    expand_cross_regime_variants,
+)
 from cpd.experiments.seizure_eeg import (
     SeizureEEGExperimentParameters,
     generate_dataset,
@@ -61,6 +64,8 @@ CROSS_REGIME_SCORE_DIRECTIONS = [
     "forward_only",
 ]
 CROSS_REGIME_SPLIT_OPTIONS = [False, True]
+# Add "inner_train" to compare inner training / outer validation.
+CROSS_REGIME_SPLIT_POLICY_OPTIONS = ["chronological"]
 CROSS_REGIME_REVERSAL_OPTIONS = [True, False]
 
 EPSILON_VALUES = [
@@ -98,6 +103,9 @@ USE_EPSILON = True
 REVERSE_RIGHT_TO_LEFT = False
 # This experiment already used a held-out chronological split in
 # fixed mode; adaptive mode uses the same split for early stopping.
+# "chronological" preserves the original split; "inner_train" trains
+# near the candidate and validates on outer prediction pairs.
+SPLIT_POLICY = "chronological"
 SPLIT_TRAIN_VALIDATION = True
 
 KMO_INCLUDE_INTERCEPT = False
@@ -257,6 +265,7 @@ RUNNER_CONFIG = RunnerConfig(
     plot_config=PLOT_CONFIG,
     saving_config=SAVING_CONFIG,
     cross_regime_kwargs={
+        "split_policy": SPLIT_POLICY,
         "use_epsilon": USE_EPSILON,
         "reverse_right_to_left": (
             REVERSE_RIGHT_TO_LEFT
@@ -312,6 +321,16 @@ def configured_competitors(
             )
         ]
 
+    cross_regime_variants = expand_cross_regime_variants(
+        cross_regime_variants,
+        (
+            CROSS_REGIME_SPLIT_POLICY_OPTIONS
+            if SWEEP_CROSS_REGIME_VARIANTS
+            else [SPLIT_POLICY]
+        ),
+        default_split=SPLIT_TRAIN_VALIDATION,
+    )
+
     normalization_options = (
         [True, False]
         if SWEEP_WITHOUT_WITHIN_REGIME_DIVISION
@@ -341,6 +360,7 @@ def configured_competitors(
             score_direction,
             split_train_validation,
             reverse_right_to_left,
+            split_policy,
         ) in cross_regime_variants:
             for epsilon in EPSILON_VALUES:
                 for normalize in normalization_options:
@@ -354,6 +374,7 @@ def configured_competitors(
                     window_size=(
                         dataset_config.window_size
                     ),
+                        split_policy=split_policy,
                         split_train_validation=(
                             split_train_validation
                         ),

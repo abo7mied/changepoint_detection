@@ -284,6 +284,10 @@ def evaluate_one_competitor(
                 cross_regime_kwargs[
                     "normalize_by_within_regime_error"
                 ] = competitor.normalize_by_within_regime_error
+            if competitor.split_policy is not None:
+                cross_regime_kwargs[
+                    "split_policy"
+                ] = competitor.split_policy
             cross_regime_kwargs.setdefault(
                 "verbose",
                 runner_config.verbose_candidate_progress,

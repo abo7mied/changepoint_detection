@@ -4,7 +4,10 @@ from __future__ import annotations
 
 from itertools import product
 
-from cpd.design import CompetitorConfig
+from cpd.design import (
+    CompetitorConfig,
+    expand_cross_regime_variants,
+)
 from cpd.experiments.causal import (
     CausalExperimentParameters,
     generate_dataset,
@@ -74,6 +77,8 @@ SCORE_DIRECTIONS = [
 ]
 
 CROSS_REGIME_SPLIT_OPTIONS = [False, True]
+# Add "inner_train" to compare inner training / outer validation.
+CROSS_REGIME_SPLIT_POLICY_OPTIONS = ["chronological"]
 CROSS_REGIME_REVERSAL_OPTIONS = [True, False]
 
 EPSILON_VALUES = [
@@ -165,6 +170,9 @@ AUTO_SHRINK_WINDOW_IF_NEEDED = False
 
 USE_EPSILON = True
 REVERSE_RIGHT_TO_LEFT = True
+# "chronological" preserves the original split; "inner_train" trains
+# near the candidate and validates on outer prediction pairs.
+SPLIT_POLICY = "chronological"
 SPLIT_TRAIN_VALIDATION = (
     FIT_MODE == "adaptive"
 )
@@ -401,6 +409,7 @@ RUNNER_CONFIG = RunnerConfig(
     saving_config=SAVING_CONFIG,
 
     cross_regime_kwargs={
+        "split_policy": SPLIT_POLICY,
         "use_epsilon": USE_EPSILON,
         "reverse_right_to_left": (
             REVERSE_RIGHT_TO_LEFT
@@ -459,6 +468,16 @@ def configured_competitors(
             for score_direction in SCORE_DIRECTIONS
         ]
 
+    cross_regime_variants = expand_cross_regime_variants(
+        cross_regime_variants,
+        (
+            CROSS_REGIME_SPLIT_POLICY_OPTIONS
+            if SWEEP_CROSS_REGIME_VARIANTS
+            else [SPLIT_POLICY]
+        ),
+        default_split=SPLIT_TRAIN_VALIDATION,
+    )
+
     normalization_options = (
         [True, False]
         if SWEEP_WITHOUT_WITHIN_REGIME_DIVISION
@@ -490,6 +509,7 @@ def configured_competitors(
             score_direction,
             split_train_validation,
             reverse_right_to_left,
+            split_policy,
         ) in cross_regime_variants:
             for epsilon in EPSILON_VALUES:
                 for normalize in normalization_options:
@@ -507,6 +527,7 @@ def configured_competitors(
                         dataset_config
                         .window_size
                     ),
+                        split_policy=split_policy,
                         split_train_validation=(
                             split_train_validation
                         ),
